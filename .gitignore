@@ -6,3 +6,9 @@ coverage
 test-results
 playwright-report
 .DS_Store
+
+# Internal docs (not for public repo)
+CLAUDE.md
+PRD.md
+.claude/
+.implementation/
