@@ -1,0 +1,106 @@
+{
+  "name": "zustand-url-sync",
+  "version": "0.0.0",
+  "description": "Zustand middleware that syncs declared store keys with URL query params, with an optional storage tier.",
+  "license": "MIT",
+  "author": "Choirul Adam <choiruladamm@gmail.com>",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "zustand",
+    "url",
+    "query-params",
+    "search-params",
+    "state",
+    "middleware"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint:arch": "depcruise src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:types": "tsc --noEmit -p test/types/tsconfig.json",
+    "api:update": "node scripts/api-snapshot.mjs --write",
+    "api:check": "node scripts/api-snapshot.mjs --check",
+    "size": "size-limit",
+    "publint": "publint",
+    "attw": "attw --pack . --profile node16"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "zustand": "^5"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@biomejs/biome": "2.5.6",
+    "@changesets/cli": "2.31.1",
+    "@size-limit/preset-small-lib": "13.0.3",
+    "@vitest/coverage-v8": "4.1.10",
+    "dependency-cruiser": "18.1.0",
+    "expect-type": "1.4.0",
+    "fast-check": "4.9.0",
+    "happy-dom": "20.11.1",
+    "publint": "0.3.22",
+    "size-limit": "13.0.3",
+    "tsdown": "0.22.14",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10",
+    "zustand": "5.0.14"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./adapters/history": {
+      "import": "./dist/adapters/history/index.js",
+      "require": "./dist/adapters/history/index.cjs"
+    },
+    "./adapters/memory": {
+      "import": "./dist/adapters/memory/index.js",
+      "require": "./dist/adapters/memory/index.cjs"
+    },
+    "./adapters/next": {
+      "import": "./dist/adapters/next/index.js",
+      "require": "./dist/adapters/next/index.cjs"
+    },
+    "./adapters/react-router": {
+      "import": "./dist/adapters/react-router/index.js",
+      "require": "./dist/adapters/react-router/index.cjs"
+    },
+    "./adapters/tanstack": {
+      "import": "./dist/adapters/tanstack/index.js",
+      "require": "./dist/adapters/tanstack/index.cjs"
+    },
+    "./codecs": {
+      "import": "./dist/codecs/index.js",
+      "require": "./dist/codecs/index.cjs"
+    },
+    "./react": {
+      "import": "./dist/react/index.js",
+      "require": "./dist/react/index.cjs"
+    },
+    "./server": {
+      "import": "./dist/server/index.js",
+      "require": "./dist/server/index.cjs"
+    },
+    "./package.json": "./package.json"
+  }
+}

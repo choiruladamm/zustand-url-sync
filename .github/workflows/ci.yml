@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Cheap and specific first: a typo fails in 20 seconds, not after a full build.
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm lint:arch
+      - run: pnpm test
+      - run: pnpm test:types
+      - run: pnpm build
+      - run: pnpm api:check
+      - run: pnpm size
+      - run: pnpm publint
+      - run: pnpm attw
+
+      - name: Zero runtime dependencies
+        run: node -e "const p=require('./package.json');process.exit(Object.keys(p.dependencies??{}).length)"
+
+  changeset:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: A PR touching src/ needs a changeset
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          if echo "$changed" | grep -q '^src/'; then
+            if ! echo "$changed" | grep -qE '^\.changeset/.+\.md$'; then
+              echo "::error::src/ changed with no changeset. Run \`pnpm changeset\`."
+              exit 1
+            fi
+          fi
