@@ -67,8 +67,12 @@ export type UrlSyncApi = {
   flush(): Promise<URLSearchParams>
   /** Builds the URL this state would produce, without navigating. For `<Link>`. */
   toSearchParams(): URLSearchParams
-  /** Forces a URL → store pass. A string with no `?` carries no params. */
-  applyUrl(url: string): void
+  /**
+   * Parses a URL string and patches the store from its query params.
+   * URL bar is not touched — use the adapter or raw `set` for that.
+   * A string with no `?` carries no params.
+   */
+  patchFromUrl(url: string): void
   pause(): void
   resume(): void
   /** All declared keys back to their defaults, cleared from the URL. */

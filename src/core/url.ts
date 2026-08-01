@@ -3,7 +3,7 @@
  * handles an already-parsed `URLSearchParams`.
  *
  * A string with no `?` has no query — not "the whole string is the query". Guessing the other way
- * would turn `applyUrl('/products')` into a param literally named `/products`.
+ * would turn `patchFromUrl('/products')` into a param literally named `/products`.
  */
 
 export function searchOf(url: string): URLSearchParams {

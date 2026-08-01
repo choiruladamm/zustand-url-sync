@@ -161,16 +161,16 @@ describe('handle', () => {
     expect(adapter.writes).toHaveLength(0)
   })
 
-  it('forces a URL → store pass through applyUrl', () => {
+  it('forces a URL → store pass through patchFromUrl', () => {
     const { store } = setup()
-    store.urlSync.applyUrl('/anything?q=forced&page=7')
+    store.urlSync.patchFromUrl('/anything?q=forced&page=7')
 
     expect(store.getState()).toMatchObject({ q: 'forced', page: 7 })
   })
 
   it('treats a URL with no query as carrying no params', () => {
     const { store } = setup('/products?q=hello')
-    store.urlSync.applyUrl('/products')
+    store.urlSync.patchFromUrl('/products')
 
     expect(store.getState().q).toBe('')
   })

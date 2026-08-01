@@ -1,5 +1,13 @@
 # zustand-url-sync
 
+## 0.2.0 (unreleased)
+
+### Breaking Changes
+
+- `urlSync.applyUrl(url)` renamed to `urlSync.patchFromUrl(url)`. The method only ever parsed the URL
+  string and patched the store — it never wrote to the URL bar — so the new name matches what the
+  call actually does. The signature is identical; just the rename. Update any direct callers.
+
 ## 0.1.0
 
 ### Minor Changes
