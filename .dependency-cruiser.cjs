@@ -1,5 +1,5 @@
 /**
- * Encodes the layer table in `.claude/rules/architecture.md`.
+ * Encodes the layer table: core > codecs > storage > middleware > react.
  * Imports flow DOWN only: core > codecs > storage > middleware > react.
  * adapters and server sit off to the side and see core (+ codecs) only.
  */
@@ -86,6 +86,9 @@ module.exports = {
     },
   ],
   options: {
+    // Tests sit next to their source and import vitest,
+    // fast-check and the shared helpers in test/. None of it ships, so none of it is layered.
+    exclude: { path: '\\.test\\.ts$' },
     doNotFollow: { path: 'node_modules' },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.json' },

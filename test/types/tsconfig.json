@@ -4,6 +4,6 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["./**/*.test-d.ts"],
+  "include": ["./**/*.test-d.ts", "../../src/globals.d.ts"],
   "exclude": []
 }
