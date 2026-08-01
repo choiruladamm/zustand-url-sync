@@ -7,8 +7,110 @@
 
 ```ts
 import { a as Limiter, c as ParamSpec, d as Source, f as UrlAdapter, i as Invalid, l as RawValue, n as Codec, o as MultiCodec, r as INVALID, s as OnInvalid, t as AdapterWriteOptions, u as RouteChangePolicy } from "./types-BYiAnE3d.js";
-import { a as StandardSchemaV1, c as NumberRange, d as ParamStart, g as ArrayOptions, h as ArrayMode, i as InferOutput, m as toSpec, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ParamBuilder } from "./c-Buoul97J.js";
-export { type AdapterWriteOptions, type ArrayMode, type ArrayOptions, type Codec, type CodecLike, INVALID, type InferOutput, type Invalid, type Limiter, type MultiCodec, type NumberRange, type OnInvalid, type ParamBuilder, type ParamSpec, type ParamStart, type RawValue, type RouteChangePolicy, type SchemaStart, type Source, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, type UrlAdapter, c, toSpec };
+import { _ as ArrayOptions, a as StandardSchemaV1, c as NumberRange, d as ParamBuilder, f as ParamStart, g as ArrayMode, h as toSpec, i as InferOutput, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as BuiltParam } from "./c-i9KHse_z.js";
+import { StateCreator, StoreMutatorIdentifier } from "zustand/vanilla";
+//#region src/core/engine.d.ts
+type CommitOptions = Partial<AdapterWriteOptions> & {
+  limit?: 'immediate';
+};
+//#endregion
+//#region src/middleware/default-adapter.d.ts
+/**
+ * The SPA shortcut: one adapter for every store in the app. Throws off-browser, where the
+ * per-request alternatives are `initialUrl`, an explicit `adapter`, or a provider.
+ */
+declare function setDefaultAdapter(adapter: UrlAdapter): void;
+//#endregion
+//#region src/middleware/types.d.ts
+/** An optional state key still carries its own type; only the absence is stripped. */
+type Value<T, K extends keyof T> = Exclude<T[K], undefined>;
+/**
+ * The keys a param may be declared on: everything that is not an action. A function has no
+ * serialized form, so declaring one is a typo, and this is what turns it into a compile error.
+ */
+type ParamKey<T> = { [K in keyof T]-?: Value<T, K> extends ((...args: never[]) => unknown) ? never : K; }[keyof T];
+/** Either the result of a `c.*` chain or a hand-written spec. */
+type ParamDecl<T> = BuiltParam<T> | ParamSpec<T>;
+/**
+ * Every declared key must exist on the state and must match its type. Nothing syncs without a
+ * declaration — there is no `partialize` and no "sync everything".
+ */
+type ParamsDecl<T> = { [K in ParamKey<T>]?: ParamDecl<Value<T, K>>; };
+type UrlSyncOptions<T> = {
+  /** Namespaces the storage tier, and supplies the param prefix when `prefix: true`. */
+  name: string;
+  params: ParamsDecl<T>;
+  /** `'tbl_'` prefixes every param; `true` uses `name` (`filters` → `filters_q`). */
+  prefix?: string | true;
+  adapter?: UrlAdapter;
+  /** Read params from this URL instead of a live one — a server render, or a store built before the router exists. */
+  initialUrl?: string;
+  /** The storage tier. Not implemented yet; declaring it is a compile error until it is. */
+  persist?: never;
+  maxUrlLength?: number;
+  onRouteChange?: RouteChangePolicy;
+  onInvalid?: OnInvalid;
+  /** Defer the first URL → store pass until `urlSync.hydrate()` runs. */
+  skipHydration?: boolean;
+};
+/**
+ * `commit`'s override applies to the writes made during the *synchronous* execution of `fn`.
+ * Carrying it across an `await` would need `AsyncLocalStorage` or a zone library; both are out, so
+ * the trap is closed here instead of in a docs footnote.
+ *
+ * The brand is an intersection rather than a constraint on `R` because `R extends SyncOnly<R>` is
+ * a circular constraint. Here `R` is still inferred from the function half, and a thenable one
+ * then has to satisfy a property no function has.
+ *
+ * `Extract` rather than a bare conditional: a bare one distributes, and `never` distributes to
+ * `never` — which would reject the perfectly good `fn` that only ever throws.
+ */
+type SyncOnly<R> = (() => R) & ([Extract<R, PromiseLike<unknown>>] extends [never] ? unknown : {
+  __commitIsSynchronous_doNotPassAnAsyncFunction: never;
+});
+type UrlSyncApi = {
+  /** Runs `fn` with URL-write options overridden for exactly the writes it produces. */
+  commit<R>(fn: SyncOnly<R>, o?: CommitOptions): Promise<URLSearchParams>;
+  /** Forces the pending write out now and resolves with what landed. */
+  flush(): Promise<URLSearchParams>;
+  /** Builds the URL this state would produce, without navigating. For `<Link>`. */
+  toSearchParams(): URLSearchParams;
+  /** Forces a URL → store pass. A string with no `?` carries no params. */
+  applyUrl(url: string): void;
+  pause(): void;
+  resume(): void;
+  /** All declared keys back to their defaults, cleared from the URL. */
+  reset(): void;
+  /** Runs the deferred first URL → store pass. A no-op once hydrated. */
+  hydrate(): void;
+  hasHydrated(): boolean;
+  /** Fires immediately if hydration already happened. Returns an unsubscribe. */
+  onHydrated(cb: () => void): () => void;
+  /** Releases the adapter subscription and this store's claim on its param keys. */
+  dispose(): void;
+};
+type Cast<T, U> = T extends U ? T : U;
+type Write<T, U> = Omit<T, keyof U> & U;
+type UrlSync = <T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = []>(initializer: StateCreator<T, [...Mps, ['url-sync', unknown]], Mcs>, options: UrlSyncOptions<T>) => StateCreator<T, Mps, [['url-sync', unknown], ...Mcs]>;
+declare module 'zustand/vanilla' {
+  interface StoreMutators<S, A> {
+    'url-sync': Write<Cast<S, object>, {
+      urlSync: UrlSyncApi;
+    }>;
+  }
+}
+//#endregion
+//#region src/middleware/url-sync.d.ts
+/**
+ * Syncs the declared keys of a store with the URL query string.
+ *
+ * The single cast in this file. Zustand's mutator pairs cannot be tracked through an
+ * implementation typed loosely enough to run, so the contract lives in `UrlSync` and is applied
+ * once, here — the same shape every official middleware uses.
+ */
+declare const urlSync: UrlSync;
+//#endregion
+export { type AdapterWriteOptions, type ArrayMode, type ArrayOptions, type BuiltParam, type Codec, type CodecLike, type CommitOptions, INVALID, type InferOutput, type Invalid, type Limiter, type MultiCodec, type NumberRange, type OnInvalid, type ParamBuilder, type ParamDecl, type ParamKey, type ParamSpec, type ParamStart, type ParamsDecl, type RawValue, type RouteChangePolicy, type SchemaStart, type Source, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, type SyncOnly, type UrlAdapter, type UrlSync, type UrlSyncApi, type UrlSyncOptions, c, setDefaultAdapter, toSpec, urlSync };
 ```
 
 ## `zustand-url-sync/adapters/history`
@@ -71,7 +173,7 @@ export {}
 
 ```ts
 import { n as Codec } from "../types-BYiAnE3d.js";
-import { _ as arrayCodec, a as StandardSchemaV1, c as NumberRange, d as ParamStart, f as createBuilder, g as ArrayOptions, h as ArrayMode, i as InferOutput, l as numberRangeCodec, m as toSpec, n as SchemaStart, o as StandardSchemaV1Props, p as start, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ParamBuilder } from "../c-Buoul97J.js";
+import { _ as ArrayOptions, a as StandardSchemaV1, c as NumberRange, d as ParamBuilder, f as ParamStart, g as ArrayMode, h as toSpec, i as InferOutput, l as numberRangeCodec, m as start, n as SchemaStart, o as StandardSchemaV1Props, p as createBuilder, r as c, s as StandardSchemaV1Result, t as CodecLike, v as arrayCodec } from "../c-i9KHse_z.js";
 //#region src/codecs/boolean.d.ts
 /** `true` / `false` only. Accepting `1` and `0` on the way in would invite emitting them later. */
 declare function booleanCodec(): Codec<boolean>;
