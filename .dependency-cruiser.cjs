@@ -53,6 +53,15 @@ module.exports = {
       to: { path: '^(src/react/|node_modules/react)' },
     },
     {
+      name: 'middleware-adapter-exception-is-history-only',
+      severity: 'error',
+      comment:
+        'middleware/ reaches for adapters/history to supply the browser default, and for nothing ' +
+        'else. A router adapter here would drag its peer dependency into the root entrypoint.',
+      from: { path: '^src/middleware/' },
+      to: { path: '^src/adapters/', pathNot: '^src/adapters/history/' },
+    },
+    {
       name: 'react-import-allowed-layers-only',
       severity: 'error',
       from: { path: '^src/react/' },

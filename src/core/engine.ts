@@ -26,6 +26,8 @@ export type Engine<S extends object> = {
   onStateChange(next: S): void
   /** `null` when nothing changed — including when the change was our own write. */
   applyExternal(): Partial<S> | null
+  /** Applies an arbitrary query string, as if the adapter had reported it. `null` if it changes nothing. */
+  applyParams(params: URLSearchParams): Partial<S> | null
   flush(): Promise<URLSearchParams>
   settled(): Promise<URLSearchParams>
   commit<R>(fn: () => R, o?: CommitOptions): Promise<URLSearchParams>
@@ -118,9 +120,11 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
     const history = override?.history ?? spec.history ?? 'replace'
     const shallow = override?.shallow ?? spec.shallow ?? true
     const scroll = override?.scroll ?? spec.scroll ?? false
-    const immediate = override?.limit === 'immediate'
+    // `limit: 'immediate'` is deliberately not forwarded per key. `commit` flushes once when the
+    // callback returns; flushing per enqueue would turn one commit of three sets into three
+    // history entries, which is the footgun the override exists to avoid.
     const limiter = spec.limiter ?? defaultLimiter({ ...spec, history, shallow })
-    return { limiter, history, shallow, scroll, immediate }
+    return { limiter, history, shallow, scroll }
   }
 
   function push(entry: ParamEntry, raw: RawValue | undefined): void {
@@ -250,6 +254,11 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
       // C6: compare serialized strings, not identity — a router hands back a fresh
       // URLSearchParams with identical content on every notification.
       if (serializeParams(params) === queue.lastWritten()) return null
+      return patchFrom(params) as Partial<S> | null
+    },
+
+    applyParams(params) {
+      if (disposed) return null
       return patchFrom(params) as Partial<S> | null
     },
 

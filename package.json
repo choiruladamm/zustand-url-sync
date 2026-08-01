@@ -27,14 +27,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:types": "tsc --noEmit -p test/types/tsconfig.json",
-    "api:update": "UPDATE_WIRE_FORMAT=1 vitest run src/codecs/wire-format.test.ts && node scripts/api-snapshot.mjs --write",
+    "api:update": "UPDATE_WIRE_FORMAT=1 vitest run src/codecs/__tests__/wire-format.test.ts && node scripts/api-snapshot.mjs --write",
     "api:check": "node scripts/api-snapshot.mjs --check",
     "size": "size-limit",
     "publint": "publint",
     "attw": "attw --pack . --profile node16",
     "test:coverage": "vitest run --coverage"
   },
-  "dependencies": {},
   "peerDependencies": {
     "react": "^18 || ^19",
     "zustand": "^5"
@@ -54,6 +53,7 @@
     "expect-type": "1.4.0",
     "fast-check": "4.9.0",
     "happy-dom": "20.11.1",
+    "immer": "^11.1.15",
     "publint": "0.3.22",
     "size-limit": "13.0.3",
     "tsdown": "0.22.14",

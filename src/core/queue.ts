@@ -11,7 +11,6 @@ export type EnqueueOptions = {
   history?: 'push' | 'replace' | undefined
   shallow?: boolean | undefined
   scroll?: boolean | undefined
-  immediate?: boolean | undefined
 }
 
 export type Queue = {
@@ -70,9 +69,9 @@ export function createQueue(adapter: UrlAdapter): Queue {
     for (const resolve of targets) resolve(params)
   }
 
-  const scheduleFlush = (immediate: boolean): void => {
+  const scheduleFlush = (): void => {
     if (disposed) return
-    scheduler.schedule(immediate ? undefined : strictestLimiter(limiters), () => {
+    scheduler.schedule(strictestLimiter(limiters), () => {
       doFlush()
     })
   }
@@ -113,7 +112,7 @@ export function createQueue(adapter: UrlAdapter): Queue {
         settle(targets, params)
         // Anything enqueued while the navigation was settling goes out as the next batch —
         // two pushes can never interleave.
-        if (pending.size > 0 || waiters.length > 0) scheduleFlush(false)
+        if (pending.size > 0 || waiters.length > 0) scheduleFlush()
       })
   }
 
@@ -137,7 +136,7 @@ export function createQueue(adapter: UrlAdapter): Queue {
       if (opts.history === 'push') batch.history = 'push'
       if (opts.shallow === false) batch.shallow = false
       if (opts.scroll === true) batch.scroll = true
-      scheduleFlush(opts.immediate === true)
+      scheduleFlush()
     },
     flush() {
       if (disposed) return Promise.resolve(read())
@@ -157,7 +156,7 @@ export function createQueue(adapter: UrlAdapter): Queue {
     resume() {
       if (!paused) return
       paused = false
-      if (pending.size > 0 || waiters.length > 0) scheduleFlush(false)
+      if (pending.size > 0 || waiters.length > 0) scheduleFlush()
     },
     lastWritten() {
       return last
