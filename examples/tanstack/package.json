@@ -1,0 +1,25 @@
+{
+  "name": "@example/tanstack",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 4303 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 4303 --strictPort"
+  },
+  "dependencies": {
+    "@example/shared": "workspace:*",
+    "@tanstack/react-router": "^1.170.18",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zustand": "^5.0.14",
+    "zustand-url-sync": "link:../.."
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "vite": "^8.2.0"
+  }
+}

@@ -1,8 +1,28 @@
 [
-  { "name": ".", "path": "dist/index.js", "limit": "6 kB", "gzip": true },
-  { "name": "./codecs", "path": "dist/codecs/index.js", "limit": "1.55 kB", "gzip": true },
-  { "name": "./react", "path": "dist/react/index.js", "limit": "1 kB", "gzip": true },
-  { "name": "./server", "path": "dist/server/index.js", "limit": "700 B", "gzip": true },
+  {
+    "name": ".",
+    "path": "dist/index.js",
+    "limit": "6 kB",
+    "gzip": true
+  },
+  {
+    "name": "./codecs",
+    "path": "dist/codecs/index.js",
+    "limit": "1.55 kB",
+    "gzip": true
+  },
+  {
+    "name": "./react",
+    "path": "dist/react/index.js",
+    "limit": "1 kB",
+    "gzip": true
+  },
+  {
+    "name": "./server",
+    "path": "dist/server/index.js",
+    "limit": "700 B",
+    "gzip": true
+  },
   {
     "name": "./adapters/history",
     "path": "dist/adapters/history/index.js",
@@ -18,19 +38,19 @@
   {
     "name": "./adapters/next",
     "path": "dist/adapters/next/index.js",
-    "limit": "600 B",
+    "limit": "800 B",
     "gzip": true
   },
   {
     "name": "./adapters/react-router",
     "path": "dist/adapters/react-router/index.js",
-    "limit": "600 B",
+    "limit": "780 B",
     "gzip": true
   },
   {
     "name": "./adapters/tanstack",
     "path": "dist/adapters/tanstack/index.js",
-    "limit": "600 B",
+    "limit": "740 B",
     "gzip": true
   }
 ]

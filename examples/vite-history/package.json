@@ -1,0 +1,24 @@
+{
+  "name": "@example/vite-history",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 4301 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 4301 --strictPort"
+  },
+  "dependencies": {
+    "@example/shared": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zustand": "^5.0.14",
+    "zustand-url-sync": "link:../.."
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "vite": "^8.2.0"
+  }
+}

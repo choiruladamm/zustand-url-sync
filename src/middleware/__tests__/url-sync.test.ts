@@ -82,7 +82,11 @@ describe('store → URL', () => {
 describe('URL → store', () => {
   it('takes the initial state from the URL, over the declared default', () => {
     const { store } = setup('/products?q=hello&page=3&tags=a,b')
-    expect(store.getState()).toMatchObject({ q: 'hello', page: 3, tags: ['a', 'b'] })
+    expect(store.getState()).toMatchObject({
+      q: 'hello',
+      page: 3,
+      tags: ['a', 'b'],
+    })
   })
 
   it('leaves undeclared state alone', () => {
@@ -117,6 +121,25 @@ describe('URL → store', () => {
     expect(adapter.writes).toHaveLength(1)
   })
 
+  it('follows Back and then Forward onto a value it wrote itself', async () => {
+    const { adapter, store } = setup('/products')
+
+    await store.urlSync.commit(() => store.getState().setPage(2), {
+      history: 'push',
+      limit: 'immediate',
+    })
+    expect(adapter.url()).toBe('/products?page=2')
+
+    adapter.back()
+    expect(store.getState().page).toBe(1)
+
+    // The feedback guard used to hold "?page=2" forever, so returning to it looked like our own
+    // write echoing back and the store stayed on the previous value while the URL moved.
+    adapter.forward()
+    expect(adapter.url()).toBe('/products?page=2')
+    expect(store.getState().page).toBe(2)
+  })
+
   it('falls back to the default for a value that will not parse, and strips it', async () => {
     const onInvalid = vi.fn()
     const { adapter, store } = setup('/products?page=nonsense', { onInvalid })
@@ -147,7 +170,9 @@ describe('prefix', () => {
   })
 
   it('reads the prefixed key back', () => {
-    const { store } = setup('/products?filters_q=hello&q=ignored', { prefix: true })
+    const { store } = setup('/products?filters_q=hello&q=ignored', {
+      prefix: true,
+    })
     expect(store.getState().q).toBe('hello')
   })
 })
@@ -266,7 +291,9 @@ describe('route change', () => {
   })
 
   it('clears them under onRouteChange: reset', async () => {
-    const { adapter, store } = setup('/products?q=hello', { onRouteChange: 'reset' })
+    const { adapter, store } = setup('/products?q=hello', {
+      onRouteChange: 'reset',
+    })
     adapter.navigate('/users?q=hello')
 
     expect(store.getState().q).toBe('')
@@ -277,7 +304,9 @@ describe('route change', () => {
 
 describe('initialUrl', () => {
   it('reads params from the given string when there is no adapter', () => {
-    const store = createFiltersStore({ initialUrl: '/products?q=hello&page=2' })
+    const store = createFiltersStore({
+      initialUrl: '/products?q=hello&page=2',
+    })
     expect(store.getState()).toMatchObject({ q: 'hello', page: 2 })
   })
 

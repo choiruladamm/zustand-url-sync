@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describeAdapterConformance } from '../../../../test/support/adapter-conformance.js'
 import { historyAdapter } from '../index.js'
 
 const options = { history: 'replace' as const, shallow: true, scroll: false }
+
+describeAdapterConformance('historyAdapter', { create: historyAdapter })
 
 beforeEach(() => {
   globalThis.history.replaceState(null, '', '/products')

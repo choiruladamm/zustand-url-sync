@@ -1,0 +1,23 @@
+{
+  "name": "@example/next-app",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "next dev --port 4304",
+    "build": "next build",
+    "start": "next start --port 4304"
+  },
+  "dependencies": {
+    "@example/shared": "workspace:*",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zustand": "^5.0.14",
+    "zustand-url-sync": "link:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4"
+  }
+}

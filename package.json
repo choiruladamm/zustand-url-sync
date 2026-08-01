@@ -32,7 +32,10 @@
     "size": "size-limit",
     "publint": "publint",
     "attw": "attw --pack . --profile node16",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "examples:install": "pnpm -C examples install",
+    "e2e": "pnpm build && pnpm -C examples e2e",
+    "e2e:install": "pnpm -C examples e2e:install"
   },
   "peerDependencies": {
     "react": "^18 || ^19",

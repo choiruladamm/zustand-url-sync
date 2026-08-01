@@ -124,7 +124,8 @@ import { f as UrlAdapter } from "../../types-BYiAnE3d.js";
 //#region src/adapters/history/index.d.ts
 /**
  * The default adapter: `window.history` directly, no router required. `shallow` is ignored — there
- * is no router to notify, so every write is already shallow.
+ * is no router to notify, so every write is already shallow, which is also why this one costs
+ * nothing beyond the history call itself.
  */
 declare function historyAdapter(): UrlAdapter;
 //#endregion
@@ -158,19 +159,99 @@ export { MemoryAdapter, memoryAdapter };
 ## `zustand-url-sync/adapters/next`
 
 ```ts
-export {}
+import { t as RouterAdapter } from "../../router-adapter-CCXDam8Y.js";
+//#region src/adapters/next/index.d.ts
+/** The parts of `useRouter()` from `next/navigation` an adapter touches. */
+type NextAppRouter = {
+  push(href: string, options?: {
+    scroll?: boolean;
+  }): void;
+  replace(href: string, options?: {
+    scroll?: boolean;
+  }): void;
+};
+/** The parts of `useRouter()` from `next/router` an adapter touches. */
+type NextPagesRouter = {
+  push(url: string, as?: string, options?: {
+    scroll?: boolean;
+    shallow?: boolean;
+  }): Promise<unknown>;
+  replace(url: string, as?: string, options?: {
+    scroll?: boolean;
+    shallow?: boolean;
+  }): Promise<unknown>;
+  /** Absent while the server renders the page — `next/router` only wires it up in the browser. */
+  events?: {
+    on(event: string, handler: () => void): void;
+    off(event: string, handler: () => void): void;
+  };
+};
+/**
+ * App Router. A default `shallow: true` write is `history.replaceState`, natively supported since
+ * Next 14.1, which is what keeps a keystroke from costing an RSC round-trip.
+ *
+ * App Router navigations — a `<Link>` click, a `router.push` from elsewhere in the app — do not emit
+ * `popstate`, so nothing tells the store the query changed. Call `notify()` when they do:
+ *
+ * ```tsx
+ * const searchParams = useSearchParams()
+ * useEffect(() => adapter.notify(), [adapter, searchParams])
+ * ```
+ */
+declare function nextAppRouterAdapter(router: NextAppRouter): RouterAdapter;
+/**
+ * Pages Router. `routeChangeComplete` covers the navigations the app makes itself, so this one needs
+ * no `notify()` in practice.
+ *
+ * A `shallow: false` write is `{ shallow: false }` to Next, which re-runs `getServerSideProps`.
+ * Next's own `shallow` flag means the same thing ours does, one layer lower.
+ */
+declare function nextPagesRouterAdapter(router: NextPagesRouter): RouterAdapter;
+//#endregion
+export { NextAppRouter, NextPagesRouter, type RouterAdapter, nextAppRouterAdapter, nextPagesRouterAdapter };
 ```
 
 ## `zustand-url-sync/adapters/react-router`
 
 ```ts
-export {}
+import { t as RouterAdapter } from "../../router-adapter-CCXDam8Y.js";
+//#region src/adapters/react-router/index.d.ts
+/** `useNavigate()`. It accepts a full href, which is exactly what an adapter has. */
+type ReactRouterNavigate = (to: string, options?: {
+  replace?: boolean;
+  preventScrollReset?: boolean;
+}) => unknown;
+/** The parts of a data router (`createBrowserRouter`) an adapter touches. */
+type ReactRouterDataRouter = {
+  navigate(to: string, options?: {
+    replace?: boolean;
+    preventScrollReset?: boolean;
+  }): unknown;
+  subscribe(listener: (state: unknown) => void): () => void;
+};
+/**
+ * A `shallow: false` write goes through `navigate`, which re-runs the route's loaders. The default
+ * shallow write does not, so typing into a filter never refetches.
+ */
+declare function reactRouterAdapter(source: ReactRouterNavigate | ReactRouterDataRouter): RouterAdapter;
+//#endregion
+export { ReactRouterDataRouter, ReactRouterNavigate, type RouterAdapter, reactRouterAdapter };
 ```
 
 ## `zustand-url-sync/adapters/tanstack`
 
 ```ts
-export {}
+import { t as RouterAdapter } from "../../router-adapter-CCXDam8Y.js";
+//#region src/adapters/tanstack/index.d.ts
+/** The parts of `createRouter()`'s result an adapter touches. */
+type TanStackRouter = {
+  /** Resolves once the router has finished resolving the current location. */
+  load(): Promise<void>;
+  subscribe(event: 'onResolved', listener: () => void): () => void;
+};
+declare function tanstackRouterAdapter(router: TanStackRouter): RouterAdapter;
+//#endregion
+export { TanStackRouter, tanstackRouterAdapter };
 ```
 
 ## `zustand-url-sync/codecs`

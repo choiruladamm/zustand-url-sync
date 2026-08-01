@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/coverage", "!**/node_modules", "!api"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/coverage",
+      "!**/node_modules",
+      "!api",
+      "!**/.next",
+      "!**/next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -38,6 +46,10 @@
   "overrides": [
     {
       "includes": ["*.config.ts", "scripts/**"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    {
+      "includes": ["examples/**"],
       "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
     }
   ]
