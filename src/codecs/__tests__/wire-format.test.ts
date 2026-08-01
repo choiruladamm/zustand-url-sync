@@ -16,7 +16,14 @@ import { c } from '../c.js'
  */
 // `fileURLToPath(new URL(...))` breaks here: happy-dom replaces the global `URL`, and node:url
 // rejects the resulting object. Resolving from the module path as a string sidesteps it.
-const FILE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'api', 'wire-format.md')
+const FILE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  'api',
+  'wire-format.md',
+)
 
 type Case = { codec: string; input: string; spec: ParamSpec<unknown>; value: unknown }
 
