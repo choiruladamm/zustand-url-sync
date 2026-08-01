@@ -27,11 +27,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:types": "tsc --noEmit -p test/types/tsconfig.json",
-    "api:update": "node scripts/api-snapshot.mjs --write",
+    "api:update": "UPDATE_WIRE_FORMAT=1 vitest run src/codecs/wire-format.test.ts && node scripts/api-snapshot.mjs --write",
     "api:check": "node scripts/api-snapshot.mjs --check",
     "size": "size-limit",
     "publint": "publint",
-    "attw": "attw --pack . --profile node16"
+    "attw": "attw --pack . --profile node16",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {},
   "peerDependencies": {

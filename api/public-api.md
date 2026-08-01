@@ -6,19 +6,47 @@
 ## `zustand-url-sync`
 
 ```ts
-export {}
+import { a as Limiter, c as ParamSpec, d as Source, f as UrlAdapter, i as Invalid, l as RawValue, n as Codec, o as MultiCodec, r as INVALID, s as OnInvalid, t as AdapterWriteOptions, u as RouteChangePolicy } from "./types-BYiAnE3d.js";
+import { a as StandardSchemaV1, c as NumberRange, d as ParamStart, g as ArrayOptions, h as ArrayMode, i as InferOutput, m as toSpec, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ParamBuilder } from "./c-Buoul97J.js";
+export { type AdapterWriteOptions, type ArrayMode, type ArrayOptions, type Codec, type CodecLike, INVALID, type InferOutput, type Invalid, type Limiter, type MultiCodec, type NumberRange, type OnInvalid, type ParamBuilder, type ParamSpec, type ParamStart, type RawValue, type RouteChangePolicy, type SchemaStart, type Source, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, type UrlAdapter, c, toSpec };
 ```
 
 ## `zustand-url-sync/adapters/history`
 
 ```ts
-export {}
+import { f as UrlAdapter } from "../../types-BYiAnE3d.js";
+//#region src/adapters/history/index.d.ts
+/**
+ * The default adapter: `window.history` directly, no router required. `shallow` is ignored — there
+ * is no router to notify, so every write is already shallow.
+ */
+declare function historyAdapter(): UrlAdapter;
+//#endregion
+export { historyAdapter };
 ```
 
 ## `zustand-url-sync/adapters/memory`
 
 ```ts
-export {}
+import { f as UrlAdapter } from "../../types-BYiAnE3d.js";
+//#region src/adapters/memory/index.d.ts
+type MemoryAdapter = UrlAdapter & {
+  /** The full current URL, for assertions. */
+  url(): string;
+  /** Simulates the Back button: notifies subscribers, the way `popstate` does. */
+  back(): void;
+  forward(): void;
+  /** Simulates an external navigation (a router pushing a new route). */
+  navigate(url: string): void;
+  entries(): readonly string[];
+};
+/**
+ * The substrate every core test runs on: a real history stack with no DOM. Also the adapter for
+ * Node and React Native, where there is no URL to own.
+ */
+declare function memoryAdapter(initialUrl?: string): MemoryAdapter;
+//#endregion
+export { MemoryAdapter, memoryAdapter };
 ```
 
 ## `zustand-url-sync/adapters/next`
@@ -42,7 +70,50 @@ export {}
 ## `zustand-url-sync/codecs`
 
 ```ts
-export {}
+import { n as Codec } from "../types-BYiAnE3d.js";
+import { _ as arrayCodec, a as StandardSchemaV1, c as NumberRange, d as ParamStart, f as createBuilder, g as ArrayOptions, h as ArrayMode, i as InferOutput, l as numberRangeCodec, m as toSpec, n as SchemaStart, o as StandardSchemaV1Props, p as start, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ParamBuilder } from "../c-Buoul97J.js";
+//#region src/codecs/boolean.d.ts
+/** `true` / `false` only. Accepting `1` and `0` on the way in would invite emitting them later. */
+declare function booleanCodec(): Codec<boolean>;
+//#endregion
+//#region src/codecs/enum.d.ts
+declare function enumCodec<const V extends readonly string[]>(values: V): Codec<V[number]>;
+//#endregion
+//#region src/codecs/float.d.ts
+declare function floatCodec(): Codec<number>;
+//#endregion
+//#region src/codecs/integer.d.ts
+declare function integerCodec(): Codec<number>;
+//#endregion
+//#region src/codecs/iso-date.d.ts
+/** `?from=2026-08-01T00:00:00.000Z`. Readable in a shared link; sorts lexicographically. */
+declare function isoDateCodec(): Codec<Date>;
+//#endregion
+//#region src/codecs/json.d.ts
+/**
+ * The escape hatch, not the default. Equality is `JSON.stringify` on both sides, so two objects
+ * with the same entries in a different key order compare unequal and write the URL again — which
+ * is the honest answer for a codec whose wire format is key-order-sensitive anyway.
+ */
+declare function jsonCodec<T>(): Codec<T>;
+//#endregion
+//#region src/codecs/schema.d.ts
+/** Validates the raw string. Use `.json()` when the param carries a serialized object. */
+declare function schemaCodec<S extends StandardSchemaV1>(schema: S): Codec<InferOutput<S>>;
+declare function jsonSchemaCodec<S extends StandardSchemaV1>(schema: S): Codec<InferOutput<S>>;
+//#endregion
+//#region src/codecs/string.d.ts
+/**
+ * Identity. `URLSearchParams` owns percent-encoding, so a codec always sees and returns the
+ * decoded value — `+`, `%` and unicode need no handling here.
+ */
+declare function stringCodec(): Codec<string>;
+//#endregion
+//#region src/codecs/timestamp.d.ts
+/** `?at=1785283200000`. Shorter than ISO, at the cost of being unreadable. */
+declare function timestampCodec(): Codec<Date>;
+//#endregion
+export { type ArrayMode, type ArrayOptions, type CodecLike, type InferOutput, type NumberRange, type ParamBuilder, type ParamStart, type SchemaStart, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, arrayCodec, booleanCodec, c, createBuilder, enumCodec, floatCodec, integerCodec, isoDateCodec, jsonCodec, jsonSchemaCodec, numberRangeCodec, schemaCodec, start, stringCodec, timestampCodec, toSpec };
 ```
 
 ## `zustand-url-sync/react`

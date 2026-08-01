@@ -5,8 +5,6 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
-    // M0 ships no library code and therefore no tests. Flip to false once M1 lands.
-    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
