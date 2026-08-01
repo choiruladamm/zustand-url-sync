@@ -15,7 +15,7 @@ describe('searchOf', () => {
   })
 
   it('treats a string with no `?` as carrying no params', () => {
-    // Guessing the other way would turn `applyUrl('/products')` into a param named `/products`.
+    // Guessing the other way would turn `patchFromUrl('/products')` into a param named `/products`.
     expect([...searchOf('/products')]).toEqual([])
     expect([...searchOf('')]).toEqual([])
   })

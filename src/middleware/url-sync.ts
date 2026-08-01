@@ -81,7 +81,7 @@ const urlSyncImpl =
       commit: (fn, o) => engine.commit(fn, o),
       flush: () => engine.flush(),
       toSearchParams: () => engine.toSearchParams(get()),
-      applyUrl: (url) => {
+      patchFromUrl: (url) => {
         const patch = engine.applyParams(searchOf(url))
         if (patch) rawSet(patch, false)
       },
