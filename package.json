@@ -1,6 +1,6 @@
 {
   "name": "zustand-url-sync",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Zustand middleware that syncs declared store keys with URL query params, with an optional storage tier.",
   "license": "MIT",
   "author": "Choirul Adam <choiruladamm@gmail.com>",
