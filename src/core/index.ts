@@ -9,7 +9,7 @@ export {
   strictestLimiter,
 } from './limiter.js'
 export { applyUrlBudget, type BudgetResult, type OwnedKey } from './overflow.js'
-export { applyDiff, fromEntries, readRaw, serializeParams, toEntries } from './params.js'
+export { applyDiff, fromEntries, readRaw, sameRaw, serializeParams, toEntries } from './params.js'
 export { type Resolution, resolveInitial } from './precedence.js'
 export { createQueue, DEFAULT_MAX_URL_LENGTH, type EnqueueOptions, type Queue } from './queue.js'
 export { createRegistry, type Registry } from './registry.js'

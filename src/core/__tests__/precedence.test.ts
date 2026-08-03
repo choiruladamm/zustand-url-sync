@@ -8,6 +8,7 @@ const entry: ParamEntry = {
   stateKey: 'page',
   paramKey: 'page',
   spec: toSpec(c.integer().default(1)),
+  inUrl: true,
 }
 
 /** `undefined` = absent, a string = present. `'oops'` is the invalid case for `c.integer()`. */

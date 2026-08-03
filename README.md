@@ -133,11 +133,52 @@ const searchParams = useSearchParams()
 useEffect(() => adapter.notify(), [adapter, searchParams])
 ```
 
+## Persisting a subset — `persist`
+
+Keep some keys across reloads, without letting them beat a shared link.
+
+```ts
+persist: {
+  storage: 'local',   // 'local' | 'session' | your own StateStorage | false
+  keys: ['sort'],     // params that also persist
+  extra: {            // storage-only keys, each with its own codec
+    pageSize: c.integer().default(25),
+  },
+  version: 1,                              // bump to invalidate what is stored
+  migrate: (persisted, from) => persisted,  // upgrade it instead of discarding
+}
+```
+
+**URL > storage > default**, always. The link decides; storage fills in the keys it left out. The
+merged result is then written back, so this visit's URL becomes next visit's default.
+
+| field | means |
+|---|---|
+| `keys` | params you already declared that should also persist |
+| `extra` | keys that live only in storage and never touch the URL |
+| `version` + `migrate` | an older entry is migrated, or discarded if you gave no `migrate` |
+
+Nothing persists without a declared codec — no `partialize`, no "persist everything". For the rest
+of your store, compose the official `persist` middleware around `urlSync`.
+
+Stored as one slot per store, `zustand-url-sync:<name>`, holding the same strings the URL carries —
+so a key can move between `params` and `extra` without a migration:
+
+```json
+{ "v": 1, "s": { "sort": "name", "pageSize": "50" } }
+```
+
+It degrades rather than breaks: a corrupt or version-mismatched entry falls back to defaults,
+unavailable storage or a full quota leaves the store URL-only, and `urlSync.reset()` clears the
+entry with the URL. Reads are synchronous by design — an async backend rehydrates *after* creation
+and would land on top of the URL.
+
 ## Status
 
 Pre-1.0, and the surface may still move.
 
-Implemented and covered: the sync engine, every codec above, and all six adapters. 475 unit tests,
+Implemented and covered: the sync engine, every codec above, the storage tier, and all six adapters.
+539 unit tests,
 plus one Playwright spec run against five real apps in both Chromium and WebKit. WebKit is not
 optional — Safari's history rate limit is the constraint the write queue exists for, and only a real
 browser throwing `SecurityError` reproduces it.
@@ -146,7 +187,6 @@ Not built yet. These entrypoints resolve but export nothing:
 
 - `zustand-url-sync/react` — provider, `createStoreContext`, hooks
 - `zustand-url-sync/server` — DOM-free parsing
-- the storage tier (`persist`)
 
 Zero runtime dependencies. `zustand` is the only required peer; `react` is optional, and no router
 package is a peer at all. SSR-safe by design: no DOM access in the core, and no module-level mutable
@@ -157,7 +197,7 @@ See [`examples/`](./examples) for one working app per adapter.
 ## Roadmap
 
 - `0.2` — Next.js, React Router, TanStack Router adapters ✅
-- `0.3` — Storage tier (cookie, IndexedDB) with declared keys
+- `0.3` — Storage tier (`local` / `session` / custom) with declared keys ✅
 - `0.4` — React provider for SSR (`createStoreContext`)
 - `1.0` — API freeze
 

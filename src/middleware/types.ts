@@ -2,6 +2,7 @@ import type { StateCreator, StoreMutatorIdentifier } from 'zustand/vanilla'
 import type { BuiltParam } from '../codecs/builder.js'
 import type { CommitOptions } from '../core/engine.js'
 import type { OnInvalid, ParamSpec, RouteChangePolicy, UrlAdapter } from '../core/types.js'
+import type { StateStorage } from '../storage/guarded.js'
 
 /** An optional state key still carries its own type; only the absence is stripped. */
 type Value<T, K extends keyof T> = Exclude<T[K], undefined>
@@ -25,17 +26,44 @@ export type ParamsDecl<T> = {
   [K in ParamKey<T>]?: ParamDecl<Value<T, K>>
 }
 
-export type UrlSyncOptions<T> = {
+/** Where the tier stores. `false` turns it off; a `StateStorage` supplies a backend of your own. */
+export type StorageOption = 'local' | 'session' | StateStorage | false
+
+/**
+ * The storage tier. It never outranks the URL: a shared link renders what the sender saw, and the
+ * stored value is what fills in the keys that link left out.
+ *
+ * `P` is the declared `params` object, which is what makes `keys` a closed set — naming a key that
+ * has no codec is a compile error, not a silent no-op.
+ */
+export type PersistOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
+  /** Default `'local'`. */
+  storage?: StorageOption
+  /** Which declared params also persist. Everything else stays URL-only. */
+  keys?: readonly Extract<keyof P, ParamKey<T>>[]
+  /**
+   * Storage-only keys, each with its own codec, so a persisted value round-trips as its declared
+   * type instead of `JSON.parse`-of-anything. A key already in `params` is rejected — it would be
+   * two declarations of one slot.
+   */
+  extra?: { [K in Exclude<ParamKey<T>, keyof P>]?: ParamDecl<Value<T, K>> }
+  /** Bump to invalidate what is already stored. Default `0`. */
+  version?: number
+  /** Upgrades an older entry. Values are the serialized strings, exactly as the URL carries them. */
+  migrate?: (persisted: Record<string, unknown>, from: number) => Record<string, unknown>
+}
+
+export type UrlSyncOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
   /** Namespaces the storage tier, and supplies the param prefix when `prefix: true`. */
   name: string
-  params: ParamsDecl<T>
+  params: P
   /** `'tbl_'` prefixes every param; `true` uses `name` (`filters` → `filters_q`). */
   prefix?: string | true
   adapter?: UrlAdapter
   /** Read params from this URL instead of a live one — a server render, or a store built before the router exists. */
   initialUrl?: string
-  /** The storage tier. Not implemented yet; declaring it is a compile error until it is. */
-  persist?: never
+  /** The storage tier, off unless declared. `false` is the same as leaving it out. */
+  persist?: PersistOptions<T, P> | false
   maxUrlLength?: number
   onRouteChange?: RouteChangePolicy
   onInvalid?: OnInvalid
@@ -93,9 +121,10 @@ export type UrlSync = <
   T,
   Mps extends [StoreMutatorIdentifier, unknown][] = [],
   Mcs extends [StoreMutatorIdentifier, unknown][] = [],
+  P extends ParamsDecl<T> = ParamsDecl<T>,
 >(
   initializer: StateCreator<T, [...Mps, ['url-sync', unknown]], Mcs>,
-  options: UrlSyncOptions<T>,
+  options: UrlSyncOptions<T, P>,
 ) => StateCreator<T, Mps, [['url-sync', unknown], ...Mcs]>
 
 declare module 'zustand/vanilla' {

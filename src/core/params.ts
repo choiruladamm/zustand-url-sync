@@ -68,6 +68,14 @@ export function serializeParams(params: URLSearchParams): string {
   return params.toString().split('%2C').join(',').split('%3A').join(':')
 }
 
+/** A single-slot raw and a one-element repeat carry the same value, so they compare equal. */
+export function sameRaw(a: RawValue | undefined, b: RawValue | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b
+  const left = typeof a === 'string' ? [a] : a
+  const right = typeof b === 'string' ? [b] : b
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
 export function readRaw(params: URLSearchParams, key: string): RawValue | undefined {
   const all = params.getAll(key)
   if (all.length === 0) return undefined

@@ -6,6 +6,7 @@ import { getScope } from '../core/scope.js'
 import type { ParamSpec, UrlAdapter } from '../core/types.js'
 import { searchOf } from '../core/url.js'
 import { getDefaultAdapter } from './default-adapter.js'
+import { createPersistTier } from './persist.js'
 import { staticAdapter } from './static-adapter.js'
 import type { ParamsDecl, UrlSync, UrlSyncApi, UrlSyncOptions } from './types.js'
 
@@ -41,6 +42,13 @@ const urlSyncImpl =
     const adapter = resolveAdapter(options)
     const prefix = options.prefix === true ? `${options.name}_` : (options.prefix ?? '')
     const rawSet = set as unknown as Setter
+    const specs = buildSpecs(options.params)
+    const tier = createPersistTier({
+      name: options.name,
+      prefix,
+      params: specs,
+      persist: options.persist,
+    })
 
     let ready = false
     let hydrated = false
@@ -48,7 +56,9 @@ const urlSyncImpl =
 
     const engine = createEngine<AnyState>({
       storeName: options.name,
-      specs: buildSpecs(options.params),
+      specs,
+      sourceOnlySpecs: tier?.extraSpecs,
+      sources: tier?.source ? [tier.source] : undefined,
       adapter,
       scope: getScope(adapter),
       prefix,

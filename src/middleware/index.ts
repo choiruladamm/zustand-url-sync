@@ -3,6 +3,8 @@ export type {
   ParamDecl,
   ParamKey,
   ParamsDecl,
+  PersistOptions,
+  StorageOption,
   SyncOnly,
   UrlSync,
   UrlSyncApi,
