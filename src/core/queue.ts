@@ -23,8 +23,15 @@ export type Queue = {
   settled(): Promise<URLSearchParams>
   pause(): void
   resume(): void
-  /** The serialized form of our own last write — the feedback guard's comparison key. */
-  lastWritten(): string | undefined
+  /**
+   * The feedback guard: true when `serialized` is the echo of the write we just issued.
+   *
+   * Answering costs the recorded write, whatever the answer. It is spent on a match because the
+   * guard exists to swallow one echo, and spent on a miss because a notification that is *not* ours
+   * means the URL has moved on — a Back that leaves the value and a Forward that returns to it are
+   * two real navigations, and the second must not be mistaken for our own write coming back.
+   */
+  wasJustWritten(serialized: string): boolean
   setMaxUrlLength(value: number): void
   dispose(): void
 }
@@ -35,7 +42,11 @@ type Batch = {
   scroll: boolean
 }
 
-const freshBatch = (): Batch => ({ history: 'replace', shallow: true, scroll: false })
+const freshBatch = (): Batch => ({
+  history: 'replace',
+  shallow: true,
+  scroll: false,
+})
 
 /**
  * One queue per adapter instance. Stores sharing an adapter are exactly the stores
@@ -158,8 +169,10 @@ export function createQueue(adapter: UrlAdapter): Queue {
       paused = false
       if (pending.size > 0 || waiters.length > 0) scheduleFlush()
     },
-    lastWritten() {
-      return last
+    wasJustWritten(serialized) {
+      const echo = last !== undefined && last === serialized
+      last = undefined
+      return echo
     },
     setMaxUrlLength(value) {
       maxUrlLength = Math.min(maxUrlLength, value)

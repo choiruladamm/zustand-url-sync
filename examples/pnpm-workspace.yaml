@@ -1,0 +1,7 @@
+packages:
+  - 'shared'
+  - 'vite-history'
+  - 'react-router'
+  - 'tanstack'
+  - 'next-app'
+  - 'next-pages'

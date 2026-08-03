@@ -1,0 +1,19 @@
+{
+  "name": "zustand-url-sync-examples",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "One minimal app per adapter, driven by a single shared Playwright suite.",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium webkit",
+    "build": "pnpm --filter=@example/next-app --filter=@example/next-pages build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "^5.9.3"
+  }
+}

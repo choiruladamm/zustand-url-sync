@@ -19,7 +19,9 @@ import {
 } from './types.js'
 import { createUrlSource } from './url-source.js'
 
-export type CommitOptions = Partial<AdapterWriteOptions> & { limit?: 'immediate' }
+export type CommitOptions = Partial<AdapterWriteOptions> & {
+  limit?: 'immediate'
+}
 
 export type Engine<S extends object> = {
   resolveInitial(defaults: S): Partial<S>
@@ -97,7 +99,10 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
     storeName,
   )
   const releaseOwned = queue.declare(
-    writable.map((entry) => ({ key: entry.paramKey, priority: entry.spec.priority ?? 0 })),
+    writable.map((entry) => ({
+      key: entry.paramKey,
+      priority: entry.spec.priority ?? 0,
+    })),
   )
   queue.setMaxUrlLength(options.maxUrlLength ?? DEFAULT_MAX_URL_LENGTH)
 
@@ -253,7 +258,7 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
       const params = adapter.read()
       // C6: compare serialized strings, not identity — a router hands back a fresh
       // URLSearchParams with identical content on every notification.
-      if (serializeParams(params) === queue.lastWritten()) return null
+      if (queue.wasJustWritten(serializeParams(params))) return null
       return patchFrom(params) as Partial<S> | null
     },
 
