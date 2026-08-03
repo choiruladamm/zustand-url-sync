@@ -25,9 +25,23 @@ const expectQuery = async (page: Page, key: string, value: string | null): Promi
     .toBe(value)
 }
 
+/**
+ * Paint is not readiness. The two Next apps ship server-rendered HTML, so every control is visible
+ * and clickable before the bundle has run — an interaction in that window is dropped, and the test
+ * then waits out its timeout on a URL nobody was listening for. `data-hydrated` is the app saying
+ * its handlers are attached.
+ */
+const ready = async (page: Page): Promise<void> => {
+  await expect(page.getByTestId('adapter')).toHaveAttribute('data-hydrated', 'true')
+}
+
+const visit = async (page: Page, url: string): Promise<void> => {
+  await page.goto(url)
+  await ready(page)
+}
+
 test.beforeEach(async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByTestId('adapter')).toBeVisible()
+  await visit(page, '/')
 })
 
 test('typing into search reaches the URL', async ({ page }) => {
@@ -85,6 +99,7 @@ test('a refresh restores the state from the URL', async ({ page }) => {
   await expectQuery(page, 'tags', 'router')
 
   await page.reload()
+  await ready(page)
 
   const seen = await state(page)
   expect(seen.q).toBe('shoes')
@@ -92,7 +107,7 @@ test('a refresh restores the state from the URL', async ({ page }) => {
 })
 
 test('a deep link renders its params on first paint', async ({ page }) => {
-  await page.goto('/?q=boots&page=4&tags=react,router&view=list')
+  await visit(page, '/?q=boots&page=4&tags=react,router&view=list')
 
   const seen = await state(page)
   expect(seen).toMatchObject({
@@ -107,7 +122,7 @@ test('a garbage param renders defaults, does not crash, and is stripped', async 
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
 
-  await page.goto('/?q=boots&page=not-a-number&view=sideways')
+  await visit(page, '/?q=boots&page=not-a-number&view=sideways')
 
   expect(await state(page)).toMatchObject({
     q: 'boots',
@@ -139,7 +154,7 @@ test('30 rapid keystrokes produce no SecurityError and a correct final URL', asy
 })
 
 test('reset returns every declared key to its default and clears the URL', async ({ page }) => {
-  await page.goto('/?q=boots&page=4&tags=react')
+  await visit(page, '/?q=boots&page=4&tags=react')
   await page.getByTestId('reset').click()
 
   await expectQuery(page, 'q', null)
@@ -155,26 +170,40 @@ test('flush resolves with the params that were written', async ({ page }) => {
   await expectQuery(page, 'q', 'flushed')
 })
 
-test('a deep write re-runs the server', async ({ page }) => {
-  test.skip(!caps().rerunsOnDeepWrite, 'this app has no server or loader to re-run')
-
+test('a deep write re-runs the server, and is a plain write where there is none', async ({
+  page,
+}) => {
   const stamp = page.getByTestId('server-stamp')
   const before = await stamp.textContent()
 
   await page.getByTestId('deep-write').click()
-  await expect(stamp).not.toHaveText(before ?? '')
+  await expectQuery(page, 'page', '2')
+
+  if (caps().rerunsOnDeepWrite) {
+    await expect(stamp).not.toHaveText(before ?? '')
+  } else {
+    // No router behind the adapter, so `shallow: false` degrades to an ordinary history write.
+    // The flag must never break the app that has nothing to opt out of.
+    expect(await stamp.textContent()).toBe(before)
+    expect((await state(page)).page).toBe(2)
+  }
 })
 
-test('a shallow write does not re-run the server', async ({ page }) => {
-  test.skip(
-    !caps().rerunsOnDeepWrite || !caps().shallowSkipsRouter,
-    'this app has no server to re-run, or a router that owns the History API',
-  )
-
+test('a shallow write skips the server unless the router owns the History API', async ({
+  page,
+}) => {
   const stamp = page.getByTestId('server-stamp')
   const before = await stamp.textContent()
 
   await page.getByTestId('q').fill('shoes')
   await expectQuery(page, 'q', 'shoes')
-  expect(await stamp.textContent()).toBe(before)
+
+  if (caps().rerunsOnDeepWrite && !caps().shallowSkipsRouter) {
+    // TanStack replaces `pushState`/`replaceState` with its own, so it observes a write that asked
+    // to be shallow and re-runs the loader anyway. Asserted rather than skipped, because it is the
+    // behaviour anyone pairing this adapter with a loader will hit.
+    await expect(stamp).not.toHaveText(before ?? '')
+  } else {
+    expect(await stamp.textContent()).toBe(before)
+  }
 })

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { type ReactElement, useEffect, useState } from 'react'
 import type { UrlSyncApi } from 'zustand-url-sync'
 import type { Filters, View } from './store'
 import { TAGS } from './store'
@@ -30,6 +30,16 @@ export type DemoProps = {
 
 export function Demo(props: DemoProps): ReactElement {
   const { useFilters, useView, filtersApi, serverStamp, adapter } = props
+
+  /**
+   * A server-rendered input is on screen and typeable before React has attached its listeners, and
+   * a keystroke that lands in that gap is dropped — nothing reads it, and hydration then resets the
+   * field to the store value. The suite waits on this flag so a test types into a live app rather
+   * than into markup.
+   */
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => setHydrated(true), [])
+
   const q = useFilters((s) => s.q)
   const page = useFilters((s) => s.page)
   const tags = useFilters((s) => s.tags)
@@ -41,7 +51,9 @@ export function Demo(props: DemoProps): ReactElement {
 
   return (
     <main>
-      <h1 data-testid="adapter">{adapter}</h1>
+      <h1 data-testid="adapter" data-hydrated={hydrated ? 'true' : 'false'}>
+        {adapter}
+      </h1>
 
       <label>
         Search
