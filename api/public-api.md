@@ -21,6 +21,21 @@ type CommitOptions = Partial<AdapterWriteOptions> & {
  */
 declare function setDefaultAdapter(adapter: UrlAdapter): void;
 //#endregion
+//#region src/storage/guarded.d.ts
+/**
+ * The three methods a storage backend has to provide, matching the shape Zustand's own `persist`
+ * uses so an existing custom storage drops in unchanged.
+ *
+ * Synchronous by design: precedence resolves during store creation, and a value that arrives after
+ * that would land on top of the URL — the exact failure this tier exists to avoid. An async
+ * backend belongs behind the official `persist` middleware instead.
+ */
+type StateStorage = {
+  getItem(name: string): string | null;
+  setItem(name: string, value: string): void;
+  removeItem(name: string): void;
+};
+//#endregion
 //#region src/middleware/types.d.ts
 /** An optional state key still carries its own type; only the absence is stripped. */
 type Value<T, K extends keyof T> = Exclude<T[K], undefined>;
@@ -36,17 +51,42 @@ type ParamDecl<T> = BuiltParam<T> | ParamSpec<T>;
  * declaration — there is no `partialize` and no "sync everything".
  */
 type ParamsDecl<T> = { [K in ParamKey<T>]?: ParamDecl<Value<T, K>>; };
-type UrlSyncOptions<T> = {
+/** Where the tier stores. `false` turns it off; a `StateStorage` supplies a backend of your own. */
+type StorageOption = 'local' | 'session' | StateStorage | false;
+/**
+ * The storage tier. It never outranks the URL: a shared link renders what the sender saw, and the
+ * stored value is what fills in the keys that link left out.
+ *
+ * `P` is the declared `params` object, which is what makes `keys` a closed set — naming a key that
+ * has no codec is a compile error, not a silent no-op.
+ */
+type PersistOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
+  /** Default `'local'`. */
+  storage?: StorageOption;
+  /** Which declared params also persist. Everything else stays URL-only. */
+  keys?: readonly Extract<keyof P, ParamKey<T>>[];
+  /**
+   * Storage-only keys, each with its own codec, so a persisted value round-trips as its declared
+   * type instead of `JSON.parse`-of-anything. A key already in `params` is rejected — it would be
+   * two declarations of one slot.
+   */
+  extra?: { [K in Exclude<ParamKey<T>, keyof P>]?: ParamDecl<Value<T, K>>; };
+  /** Bump to invalidate what is already stored. Default `0`. */
+  version?: number;
+  /** Upgrades an older entry. Values are the serialized strings, exactly as the URL carries them. */
+  migrate?: (persisted: Record<string, unknown>, from: number) => Record<string, unknown>;
+};
+type UrlSyncOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
   /** Namespaces the storage tier, and supplies the param prefix when `prefix: true`. */
   name: string;
-  params: ParamsDecl<T>;
+  params: P;
   /** `'tbl_'` prefixes every param; `true` uses `name` (`filters` → `filters_q`). */
   prefix?: string | true;
   adapter?: UrlAdapter;
   /** Read params from this URL instead of a live one — a server render, or a store built before the router exists. */
   initialUrl?: string;
-  /** The storage tier. Not implemented yet; declaring it is a compile error until it is. */
-  persist?: never;
+  /** The storage tier, off unless declared. `false` is the same as leaving it out. */
+  persist?: PersistOptions<T, P> | false;
   maxUrlLength?: number;
   onRouteChange?: RouteChangePolicy;
   onInvalid?: OnInvalid;
@@ -95,7 +135,7 @@ type UrlSyncApi = {
 };
 type Cast<T, U> = T extends U ? T : U;
 type Write<T, U> = Omit<T, keyof U> & U;
-type UrlSync = <T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = []>(initializer: StateCreator<T, [...Mps, ['url-sync', unknown]], Mcs>, options: UrlSyncOptions<T>) => StateCreator<T, Mps, [['url-sync', unknown], ...Mcs]>;
+type UrlSync = <T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = [], P extends ParamsDecl<T> = ParamsDecl<T>>(initializer: StateCreator<T, [...Mps, ['url-sync', unknown]], Mcs>, options: UrlSyncOptions<T, P>) => StateCreator<T, Mps, [['url-sync', unknown], ...Mcs]>;
 declare module 'zustand/vanilla' {
   interface StoreMutators<S, A> {
     'url-sync': Write<Cast<S, object>, {
@@ -114,7 +154,7 @@ declare module 'zustand/vanilla' {
  */
 declare const urlSync: UrlSync;
 //#endregion
-export { type AdapterWriteOptions, type ArrayMode, type ArrayOptions, type BuiltParam, type Codec, type CodecLike, type CommitOptions, INVALID, type InferOutput, type Invalid, type Limiter, type MultiCodec, type NumberRange, type OnInvalid, type ParamBuilder, type ParamDecl, type ParamKey, type ParamSpec, type ParamStart, type ParamsDecl, type RawValue, type RouteChangePolicy, type SchemaStart, type Source, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, type SyncOnly, type UrlAdapter, type UrlSync, type UrlSyncApi, type UrlSyncOptions, c, setDefaultAdapter, toSpec, urlSync };
+export { type AdapterWriteOptions, type ArrayMode, type ArrayOptions, type BuiltParam, type Codec, type CodecLike, type CommitOptions, INVALID, type InferOutput, type Invalid, type Limiter, type MultiCodec, type NumberRange, type OnInvalid, type ParamBuilder, type ParamDecl, type ParamKey, type ParamSpec, type ParamStart, type ParamsDecl, type PersistOptions, type RawValue, type RouteChangePolicy, type SchemaStart, type Source, type StandardSchemaV1, type StandardSchemaV1Props, type StandardSchemaV1Result, type StateStorage, type StorageOption, type SyncOnly, type UrlAdapter, type UrlSync, type UrlSyncApi, type UrlSyncOptions, c, setDefaultAdapter, toSpec, urlSync };
 ```
 
 ## `zustand-url-sync/adapters/history`

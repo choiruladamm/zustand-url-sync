@@ -1,7 +1,7 @@
 import { parseWith, serializeWith, valuesEqual } from './codec-runtime.js'
 import { fail, warn } from './dev.js'
 import { MIN_DELAY_MS } from './limiter.js'
-import { applyDiff, readRaw, serializeParams } from './params.js'
+import { applyDiff, readRaw, sameRaw, serializeParams } from './params.js'
 import { resolveInitial as resolvePrecedence } from './precedence.js'
 import { DEFAULT_MAX_URL_LENGTH, type EnqueueOptions } from './queue.js'
 import type { Scope } from './scope.js'
@@ -46,7 +46,12 @@ export type EngineOptions = {
   adapter: UrlAdapter
   scope: Scope
   /** Sources beyond the URL — the storage tier lands here, at priority 1. */
-  sources?: readonly Source[]
+  sources?: readonly Source[] | undefined
+  /**
+   * Declared keys with no query-param form. They take part in precedence and in source writes
+   * exactly like a param does; the URL simply never holds a value for them.
+   */
+  sourceOnlySpecs?: Readonly<Record<string, ParamSpec>> | undefined
   prefix?: string | undefined
   maxUrlLength?: number | undefined
   onRouteChange?: RouteChangePolicy | undefined
@@ -65,20 +70,31 @@ function buildEntries(
   specs: Readonly<Record<string, ParamSpec>>,
   prefix: string,
   storeName: string,
+  inUrl: boolean,
 ): ParamEntry[] {
   return Object.entries(specs).map(([stateKey, spec]) => {
     if (!('default' in spec)) {
       fail(`"${stateKey}" in store "${storeName}" has no .default() — precedence needs one.`)
     }
-    return { stateKey, paramKey: `${prefix}${stateKey}`, spec }
+    // Prefixed like a param even when it never reaches the URL, so a key can move between the two
+    // tiers without the entry it is stored under changing.
+    return { stateKey, paramKey: `${prefix}${stateKey}`, spec, inUrl }
   })
 }
 
 export function createEngine<S extends object>(options: EngineOptions): Engine<S> {
   const { adapter, scope, storeName, onInvalid, onExternal } = options
   const policy: RouteChangePolicy = options.onRouteChange ?? 'keep'
-  const entries = buildEntries(options.specs, options.prefix ?? '', storeName)
-  const writable = entries.filter((entry) => entry.spec.serverOnly !== true)
+  const prefix = options.prefix ?? ''
+  const entries = [
+    ...buildEntries(options.specs, prefix, storeName, true),
+    ...buildEntries(options.sourceOnlySpecs ?? {}, prefix, storeName, false),
+  ]
+  /** Everything the URL carries, `serverOnly` included — those are read from it, never written. */
+  const urlEntries = entries.filter((entry) => entry.inUrl)
+  const writable = urlEntries.filter((entry) => entry.spec.serverOnly !== true)
+  /** What a source below the URL may hold: the writable params plus the source-only keys. */
+  const persistable = entries.filter((entry) => entry.spec.serverOnly !== true)
   const sources: Source[] = [createUrlSource(adapter), ...(options.sources ?? [])]
 
   if (process.env.NODE_ENV !== 'production') {
@@ -95,7 +111,7 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
 
   const { queue, registry } = scope
   const releaseKeys = registry.claim(
-    entries.map((entry) => entry.paramKey),
+    urlEntries.map((entry) => entry.paramKey),
     storeName,
   )
   const releaseOwned = queue.declare(
@@ -150,7 +166,9 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
   function patchFrom(params: URLSearchParams): Record<string, unknown> | null {
     const patch: Record<string, unknown> = {}
     let changed = false
-    for (const entry of entries) {
+    // Only what the URL speaks for. A source-only key has no value in any URL, so reading one here
+    // would reset a stored preference on every popstate.
+    for (const entry of urlEntries) {
       const next = valueFromUrl(entry, params)
       if (valuesEqual(entry.spec, next, known.get(entry.stateKey))) continue
       known.set(entry.stateKey, next)
@@ -160,9 +178,12 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
     return changed ? patch : null
   }
 
-  function serializedFor(state: Record<string, unknown>): Map<string, RawValue | undefined> {
+  function serializedFor(
+    state: Record<string, unknown>,
+    over: readonly ParamEntry[],
+  ): Map<string, RawValue | undefined> {
     const diff = new Map<string, RawValue | undefined>()
-    for (const entry of writable) {
+    for (const entry of over) {
       diff.set(entry.paramKey, serializeWith(entry.spec, state[entry.stateKey]))
     }
     return diff
@@ -183,7 +204,8 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
 
   function applyRoutePolicy(): Record<string, unknown> | null {
     const patch: Record<string, unknown> = {}
-    for (const entry of entries) {
+    // A route change is a statement about the URL. A stored preference outlives it.
+    for (const entry of urlEntries) {
       known.set(entry.stateKey, entry.spec.default)
       patch[entry.stateKey] = entry.spec.default
     }
@@ -216,7 +238,7 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
       // One write-back pass, so an invalid or redundant param leaves the URL and the storage
       // tier learns what the URL decided. Always a `replace` — arriving on a page is not a
       // Back-button stop.
-      const diff = serializedFor(values)
+      const diff = serializedFor(values, persistable)
       const live = adapter.read()
       for (const entry of writable) {
         const next = diff.get(entry.paramKey)
@@ -237,13 +259,13 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
       if (disposed) return
       const state = next as Record<string, unknown>
       const changed = new Map<string, RawValue | undefined>()
-      for (const entry of writable) {
+      for (const entry of persistable) {
         const value = state[entry.stateKey]
         if (valuesEqual(entry.spec, value, known.get(entry.stateKey))) continue
         known.set(entry.stateKey, value)
         const raw = serializeWith(entry.spec, value)
         changed.set(entry.paramKey, raw)
-        push(entry, raw)
+        if (entry.inUrl) push(entry, raw)
       }
       if (changed.size > 0) writeSources(changed)
     },
@@ -286,7 +308,7 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
     },
 
     toSearchParams(state) {
-      return applyDiff(adapter.read(), serializedFor(state as Record<string, unknown>))
+      return applyDiff(adapter.read(), serializedFor(state as Record<string, unknown>, writable))
     },
 
     reset() {
@@ -295,10 +317,11 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
         known.set(entry.stateKey, entry.spec.default)
         patch[entry.stateKey] = entry.spec.default
       }
+      // Every source is cleared, the URL only for the keys it carries.
       const cleared = new Map<string, RawValue | undefined>()
-      for (const entry of writable) {
+      for (const entry of persistable) {
         cleared.set(entry.paramKey, undefined)
-        push(entry, undefined)
+        if (entry.inUrl) push(entry, undefined)
       }
       writeSources(cleared)
       return patch as Partial<S>
@@ -329,11 +352,4 @@ export function createEngine<S extends object>(options: EngineOptions): Engine<S
     : undefined
 
   return Object.freeze(engine)
-}
-
-function sameRaw(a: RawValue | undefined, b: RawValue | undefined): boolean {
-  if (a === undefined || b === undefined) return a === b
-  const left = typeof a === 'string' ? [a] : a
-  const right = typeof b === 'string' ? [b] : b
-  return left.length === right.length && left.every((value, index) => value === right[index])
 }

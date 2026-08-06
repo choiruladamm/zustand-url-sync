@@ -106,13 +106,56 @@ store.urlSync.commit(async () => {
 // @ts-expect-error — same for a plain function that returns a promise.
 store.urlSync.commit(() => Promise.resolve(1))
 
-// --- the storage tier is not implemented yet ---------------------------------------------------
+// --- the storage tier persists declared keys, and only declared keys ---------------------------
+
+createStore<Filters>()(
+  urlSync(base, {
+    name: 'filters',
+    params: {
+      q: c.string().default(''),
+      sort: c.enum(['created_at', 'name']).default('created_at'),
+    },
+    persist: {
+      storage: 'local',
+      keys: ['sort'],
+      extra: { tags: c.array(c.string()).default([]) },
+      version: 1,
+    },
+  }),
+)
 
 createStore<Filters>()(
   urlSync(base, {
     name: 'filters',
     params: { q: c.string().default('') },
-    // @ts-expect-error — `persist` lands with the storage tier; declaring it now would be a lie.
-    persist: { storage: 'local' },
+    // @ts-expect-error — `sort` has no codec in `params`, so there is nothing to persist it with.
+    persist: { keys: ['sort'] },
+  }),
+)
+
+createStore<Filters>()(
+  urlSync(base, {
+    name: 'filters',
+    params: { q: c.string().default('') },
+    // @ts-expect-error — `q` is already a param; declaring it again in `extra` is two slots for one key.
+    persist: { extra: { q: c.string().default('') } },
+  }),
+)
+
+createStore<Filters>()(
+  urlSync(base, {
+    name: 'filters',
+    params: { q: c.string().default('') },
+    // @ts-expect-error — `setQ` is an action, so it is not a `ParamKey<Filters>`.
+    persist: { extra: { setQ: c.string().default('') } },
+  }),
+)
+
+createStore<Filters>()(
+  urlSync(base, {
+    name: 'filters',
+    params: { q: c.string().default('') },
+    // @ts-expect-error — `tags` is a string array; a string codec cannot carry it.
+    persist: { extra: { tags: c.string().default('') } },
   }),
 )

@@ -32,6 +32,8 @@ export {
   type ParamDecl,
   type ParamKey,
   type ParamsDecl,
+  type PersistOptions,
+  type StorageOption,
   type SyncOnly,
   setDefaultAdapter,
   type UrlSync,
@@ -39,3 +41,4 @@ export {
   type UrlSyncOptions,
   urlSync,
 } from './middleware/index.js'
+export type { StateStorage } from './storage/index.js'

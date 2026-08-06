@@ -65,6 +65,12 @@ export type ParamEntry<T = unknown> = {
   stateKey: string
   paramKey: string
   spec: ParamSpec<T>
+  /**
+   * `false` for a key that has no query-param form at all: it never reads from the URL and never
+   * writes to it, and exists only for the sources below it. Distinct from `serverOnly`, which is a
+   * key the URL still carries.
+   */
+  inUrl: boolean
 }
 
 export type Source = {
