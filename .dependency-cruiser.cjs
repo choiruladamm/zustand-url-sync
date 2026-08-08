@@ -75,11 +75,15 @@ module.exports = {
       severity: 'error',
       comment:
         'react/ also reaches zustand directly for `StoreApi` and `useStore` — createStoreContext ' +
-        'is the standard zustand context pattern, and that pattern is defined in terms of zustand\'s ' +
+        "is the standard zustand context pattern, and that pattern is defined in terms of zustand's " +
         'own types and hook, not anything middleware/ re-exports.',
       from: { path: '^src/react/' },
       to: {
-        pathNot: ['^src/(core|middleware|react)/', ...nodeModule('react'), ...nodeModule('zustand')],
+        pathNot: [
+          '^src/(core|middleware|react)/',
+          ...nodeModule('react'),
+          ...nodeModule('zustand'),
+        ],
       },
     },
     {

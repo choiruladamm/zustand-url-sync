@@ -118,9 +118,7 @@ test('a deep link renders its params on first paint', async ({ page }) => {
   })
 })
 
-test('a server-rendered app hydrates a deep link without a hydration warning', async ({
-  page,
-}) => {
+test('a server-rendered app hydrates a deep link without a hydration warning', async ({ page }) => {
   test.skip(!caps().ssrHtml, 'no server-rendered HTML to hydrate')
 
   const messages: string[] = []
