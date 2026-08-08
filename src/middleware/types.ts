@@ -1,8 +1,10 @@
 import type { StateCreator, StoreMutatorIdentifier } from 'zustand/vanilla'
-import type { BuiltParam } from '../codecs/builder.js'
+import type { ParamDecl } from '../codecs/builder.js'
 import type { CommitOptions } from '../core/engine.js'
-import type { OnInvalid, ParamSpec, RouteChangePolicy, UrlAdapter } from '../core/types.js'
+import type { OnInvalid, RouteChangePolicy, UrlAdapter } from '../core/types.js'
 import type { StateStorage } from '../storage/guarded.js'
+
+export type { ParamDecl }
 
 /** An optional state key still carries its own type; only the absence is stripped. */
 type Value<T, K extends keyof T> = Exclude<T[K], undefined>
@@ -14,9 +16,6 @@ type Value<T, K extends keyof T> = Exclude<T[K], undefined>
 export type ParamKey<T> = {
   [K in keyof T]-?: Value<T, K> extends (...args: never[]) => unknown ? never : K
 }[keyof T]
-
-/** Either the result of a `c.*` chain or a hand-written spec. */
-export type ParamDecl<T> = BuiltParam<T> | ParamSpec<T>
 
 /**
  * Every declared key must exist on the state and must match its type. Nothing syncs without a

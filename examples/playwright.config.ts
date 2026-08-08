@@ -21,6 +21,12 @@ export type AppCapabilities = {
    * `window.history.pushState`/`replaceState` with its own and therefore sees every write.
    */
   shallowSkipsRouter: boolean
+  /**
+   * The server sends real HTML for the client to hydrate, so a store that reads the wrong URL on
+   * one side is a hydration mismatch — visible as a console error, not just a wrong value. False
+   * for a client-only SPA, which has no server-rendered markup to mismatch against.
+   */
+  ssrHtml: boolean
 }
 
 type App = {
@@ -41,6 +47,7 @@ const APPS: App[] = [
       rerunsOnDeepWrite: false,
       asyncNavigation: false,
       shallowSkipsRouter: true,
+      ssrHtml: false,
     },
   },
   {
@@ -52,6 +59,7 @@ const APPS: App[] = [
       rerunsOnDeepWrite: true,
       asyncNavigation: true,
       shallowSkipsRouter: true,
+      ssrHtml: false,
     },
   },
   {
@@ -63,6 +71,7 @@ const APPS: App[] = [
       rerunsOnDeepWrite: true,
       asyncNavigation: true,
       shallowSkipsRouter: false,
+      ssrHtml: false,
     },
   },
   {
@@ -74,6 +83,7 @@ const APPS: App[] = [
       rerunsOnDeepWrite: true,
       asyncNavigation: false,
       shallowSkipsRouter: true,
+      ssrHtml: true,
     },
   },
   {
@@ -85,6 +95,7 @@ const APPS: App[] = [
       rerunsOnDeepWrite: true,
       asyncNavigation: true,
       shallowSkipsRouter: true,
+      ssrHtml: true,
     },
   },
 ]

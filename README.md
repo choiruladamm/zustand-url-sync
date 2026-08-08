@@ -68,7 +68,9 @@ release, because links people already bookmarked stop resolving to the same view
 
 ## Adapters
 
-The middleware needs a `UrlAdapter` to read and write the URL.
+`UrlAdapter` reads and writes the URL. `historyAdapter()` (browser default, no router) and
+`memoryAdapter()` (Node/tests, no DOM) need nothing. Router adapters exist for when a URL change
+should re-run a loader or server component.
 
 | Adapter | Import from | Takes |
 |---|---|---|
@@ -79,118 +81,90 @@ The middleware needs a `UrlAdapter` to read and write the URL.
 | `reactRouterAdapter(target)` | `zustand-url-sync/adapters/react-router` | `useNavigate()` or a data router |
 | `tanstackRouterAdapter(router)` | `zustand-url-sync/adapters/tanstack` | the router instance |
 
-- **`historyAdapter()`** — the default in a browser. Uses `window.history` directly, no router
-  required. A store with no adapter falls back to it, which is why the common case needs no
-  configuration.
-- **`memoryAdapter()`** — Node, React Native, tests. A pure JS history stack, no DOM.
-- **Router adapters** — for apps where a URL change has to re-run something: a loader, a server
-  component, a data fetch.
-
-No router adapter imports its router package. Each is structurally typed against the handful of
-methods it calls, so there is no new peer dependency and no version to keep in step.
-
 ```tsx
-// Next App Router — inside a component, because useRouter() is a hook
-const router = useRouter()
-const adapter = useMemo(() => nextAppRouterAdapter(router), [router])
-
-// Next Pages Router — same shape, from next/router
-nextPagesRouterAdapter(useRouter())
-
-// React Router — a navigate function, or a data router
-reactRouterAdapter(useNavigate())
-reactRouterAdapter(createBrowserRouter(routes))
-
-// TanStack — at module scope
-tanstackRouterAdapter(router)
+const adapter = useMemo(() => nextAppRouterAdapter(useRouter()), [router]) // App Router
+nextPagesRouterAdapter(useRouter()) // Pages Router, from next/router
+reactRouterAdapter(useNavigate()) // or reactRouterAdapter(createBrowserRouter(routes))
+tanstackRouterAdapter(router) // at module scope
 ```
 
-Outside a browser there is no URL to read, so pass `initialUrl` (or a `memoryAdapter()`) instead of
-an adapter. Skip it and the server renders defaults while the browser renders the deep link.
+No router package is imported — each adapter is structurally typed against the few methods it
+calls, so there's no peer dependency or version to track. Off-browser, pass `initialUrl` instead of
+an adapter, or the server renders defaults while the client renders the deep link.
 
 ### `shallow`, `flush()`, `notify()`
 
-`shallow: true` — the default, and every keystroke — is a `replaceState` that never reaches the
-router: no loader re-runs, no server component re-renders. `shallow: false` hands the same href to
-the router, so the server does.
+`shallow: true` (default) writes with `replaceState` — no loader, no server re-render.
+`shallow: false` hands the write to the router, so it does re-run. A shallow write is invisible to
+`router.query`/`useSearch()` — read the value from the store instead, or mark that one param
+`shallow: false`.
 
-The one surprise, stated plainly: a shallow write is invisible to router hooks, so `router.query`,
-`useSearch()` and `useLocation().search` keep the value they last parsed. Read those keys from the
-store, or declare the param `shallow: false` when something outside the store must see them.
-
-TanStack is the exception — `@tanstack/history` replaces `pushState`/`replaceState` with its own, so
-the router observes every write and `shallow` cannot mean "the router does not see this". What
-`shallow: false` adds there is that the write is awaited.
-
-`await store.urlSync.flush()` resolves after the navigation has *settled*, not after the URL string
-changed — which is the distinction that matters on TanStack and Next's Pages Router, both async.
-
-`adapter.notify()` tells the store the URL moved underneath it. Next's App Router navigates without
-emitting `popstate`, so a `<Link>` click needs it:
-
-```tsx
-const searchParams = useSearchParams()
-useEffect(() => adapter.notify(), [adapter, searchParams])
+```ts
+await store.urlSync.flush() // resolves once the write has settled, not just serialized
 ```
 
-## Persisting a subset — `persist`
+Call `adapter.notify()` when the router moved the URL without a `popstate` — Next App Router's
+`<Link>` needs it:
 
-Keep some keys across reloads, without letting them beat a shared link.
+```tsx
+useEffect(() => adapter.notify(), [adapter, useSearchParams()])
+```
+
+## `persist` — keep a subset across reloads
 
 ```ts
 persist: {
   storage: 'local',   // 'local' | 'session' | your own StateStorage | false
-  keys: ['sort'],     // params that also persist
-  extra: {            // storage-only keys, each with its own codec
-    pageSize: c.integer().default(25),
-  },
-  version: 1,                              // bump to invalidate what is stored
-  migrate: (persisted, from) => persisted,  // upgrade it instead of discarding
+  keys: ['sort'],     // declared params that also persist
+  extra: { pageSize: c.integer().default(25) },  // storage-only keys, own codec
+  version: 1,
+  migrate: (persisted, from) => persisted,
 }
 ```
 
-**URL > storage > default**, always. The link decides; storage fills in the keys it left out. The
-merged result is then written back, so this visit's URL becomes next visit's default.
+**URL > storage > default**, always — a shared link never loses to a stored preference. Nothing
+persists without a declared codec (no `partialize`). Degrades rather than breaks: a corrupt entry,
+full quota, or private-mode storage falls back to URL-only.
 
-| field | means |
-|---|---|
-| `keys` | params you already declared that should also persist |
-| `extra` | keys that live only in storage and never touch the URL |
-| `version` + `migrate` | an older entry is migrated, or discarded if you gave no `migrate` |
+## SSR
 
-Nothing persists without a declared codec — no `partialize`, no "persist everything". For the rest
-of your store, compose the official `persist` middleware around `urlSync`.
+**`zustand-url-sync/server`** — parse/build query params with no DOM, React, or Zustand:
 
-Stored as one slot per store, `zustand-url-sync:<name>`, holding the same strings the URL carries —
-so a key can move between `params` and `extra` without a migration:
+```ts
+import { parseSearchParams, buildSearchParams } from 'zustand-url-sync/server'
 
-```json
-{ "v": 1, "s": { "sort": "name", "pageSize": "50" } }
+const filters = parseSearchParams(await searchParams, filtersConfig) // Next hands this shape directly
+const href = `/products?${buildSearchParams(filters, filtersConfig)}`
 ```
 
-It degrades rather than breaks: a corrupt or version-mismatched entry falls back to defaults,
-unavailable storage or a full quota leaves the store URL-only, and `urlSync.reset()` clears the
-entry with the URL. Reads are synchronous by design — an async backend rehydrates *after* creation
-and would land on top of the URL.
+**`zustand-url-sync/react`** — one store per request, via context:
+
+```tsx
+import { createStoreContext, UrlSyncProvider } from 'zustand-url-sync/react'
+
+export const createFiltersStore = (initialUrl?: string, adapter?: UrlAdapter) =>
+  createStore<FiltersState>()(urlSync((set) => ({ ... }), { ...filtersConfig, initialUrl, adapter }))
+
+export const { Provider: FiltersProvider, useStore: useFilters } =
+  createStoreContext(createFiltersStore)
+
+// wrap a layout once so every store beneath it shares an adapter
+<UrlSyncProvider adapter={nextAppRouterAdapter(router)}>
+  <FiltersProvider initialUrl={initialUrl}>{children}</FiltersProvider>
+</UrlSyncProvider>
+```
+
+A store built off-browser with no `adapter`/`initialUrl` warns and degrades to an empty URL rather
+than throwing. `skipHydration: true` + `useUrlSyncHydrated(store)` defer the first URL → store pass
+until you call `urlSync.hydrate()`.
 
 ## Status
 
-Pre-1.0, and the surface may still move.
+Pre-1.0, surface may still move. Zero runtime deps — `zustand` is the only required peer, `react`
+optional, no router package is a peer at all.
 
-Implemented and covered: the sync engine, every codec above, the storage tier, and all six adapters.
-539 unit tests,
-plus one Playwright spec run against five real apps in both Chromium and WebKit. WebKit is not
-optional — Safari's history rate limit is the constraint the write queue exists for, and only a real
-browser throwing `SecurityError` reproduces it.
-
-Not built yet. These entrypoints resolve but export nothing:
-
-- `zustand-url-sync/react` — provider, `createStoreContext`, hooks
-- `zustand-url-sync/server` — DOM-free parsing
-
-Zero runtime dependencies. `zustand` is the only required peer; `react` is optional, and no router
-package is a peer at all. SSR-safe by design: no DOM access in the core, and no module-level mutable
-state a request can reach.
+564 unit tests + one Playwright spec across five real apps in Chromium and WebKit (Safari's history
+rate limit needs a real browser), including a hydration-warning check for the SSR apps.
 
 See [`examples/`](./examples) for one working app per adapter.
 
@@ -198,7 +172,7 @@ See [`examples/`](./examples) for one working app per adapter.
 
 - `0.2` — Next.js, React Router, TanStack Router adapters ✅
 - `0.3` — Storage tier (`local` / `session` / custom) with declared keys ✅
-- `0.4` — React provider for SSR (`createStoreContext`)
+- `0.4` — SSR: server-side parsing and the React provider (`createStoreContext`) ✅
 - `1.0` — API freeze
 
 ## License

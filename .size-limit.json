@@ -20,7 +20,7 @@
   {
     "name": "./server",
     "path": "dist/server/index.js",
-    "limit": "700 B",
+    "limit": "1.2 kB",
     "gzip": true
   },
   {

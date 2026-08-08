@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand/vanilla'
 import { toSpec } from '../codecs/builder.js'
-import { fail } from '../core/dev.js'
+import { warn } from '../core/dev.js'
 import { createEngine } from '../core/engine.js'
 import { getScope } from '../core/scope.js'
 import type { ParamSpec, UrlAdapter } from '../core/types.js'
@@ -18,10 +18,14 @@ function resolveAdapter(options: UrlSyncOptions<AnyState>): UrlAdapter {
   if (options.initialUrl !== undefined) return staticAdapter(options.initialUrl)
   const fallback = getDefaultAdapter()
   if (fallback) return fallback
-  return fail(
-    `store "${options.name}" has no URL adapter and there is no window to fall back to. ` +
-      'Pass `adapter`, or `initialUrl` for a store built where no live URL exists.',
-  )
+  if (process.env.NODE_ENV !== 'production') {
+    warn(
+      `store "${options.name}" has no URL adapter and there is no window to fall back to. ` +
+        'Pass `adapter`, or `initialUrl` for a store built where no live URL exists — ' +
+        'the standard pattern for a store created during server-side rendering.',
+    )
+  }
+  return staticAdapter('')
 }
 
 function buildSpecs(params: ParamsDecl<AnyState>): Record<string, ParamSpec> {
@@ -79,7 +83,11 @@ const urlSyncImpl =
      */
     const wrappedSet = ((partial: unknown, replace?: boolean) => {
       rawSet(partial, replace)
-      if (ready) engine.onStateChange(get())
+      // Gated on `hydrated`, not just `ready`: under `skipHydration`, `known` is still empty
+      // until `hydrate()` runs `resolveInitial`. Forwarding a set in that window would diff
+      // against nothing, always look "changed", and push straight to the URL and storage —
+      // clobbering the very values `hydrate()` is about to read back.
+      if (ready && hydrated) engine.onStateChange(get())
     }) as typeof set
 
     const notifyHydrated = (): void => {

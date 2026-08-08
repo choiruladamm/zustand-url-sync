@@ -118,6 +118,22 @@ test('a deep link renders its params on first paint', async ({ page }) => {
   })
 })
 
+test('a server-rendered app hydrates a deep link without a hydration warning', async ({ page }) => {
+  test.skip(!caps().ssrHtml, 'no server-rendered HTML to hydrate')
+
+  const messages: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warning') messages.push(msg.text())
+  })
+  page.on('pageerror', (error) => messages.push(error.message))
+
+  // Query params present on first paint is exactly the case that mismatches if the server and
+  // the client ever resolve the initial state differently.
+  await visit(page, '/?q=boots&page=4&tags=react,router&view=list')
+
+  expect(messages.filter((message) => /hydrat/i.test(message))).toEqual([])
+})
+
 test('a garbage param renders defaults, does not crash, and is stripped', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))

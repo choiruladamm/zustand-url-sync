@@ -3,6 +3,15 @@
  * Imports flow DOWN only: core > codecs > storage > middleware > react.
  * adapters and server sit off to the side and see core (+ codecs) only.
  */
+// pnpm nests every package under `node_modules/.pnpm/<name>@<version>_.../node_modules/<name>`,
+// so a bare `^node_modules/react` never matches the resolved path — it has to tolerate that hop.
+// Two plain alternatives (not one regex with a nested optional group) so the pattern stays
+// outside dependency-cruiser's unsafe-regex heuristic.
+const nodeModule = (name) => [
+  `^node_modules/${name}(/|$)`,
+  `^node_modules/\\.pnpm/[^/]+/node_modules/${name}(/|$)`,
+]
+
 module.exports = {
   forbidden: [
     {
@@ -50,7 +59,7 @@ module.exports = {
       severity: 'error',
       comment: 'react/ sits above middleware/. The arrow only points down.',
       from: { path: '^src/middleware/' },
-      to: { path: '^(src/react/|node_modules/react)' },
+      to: { path: ['^src/react/', ...nodeModule('react')] },
     },
     {
       name: 'middleware-adapter-exception-is-history-only',
@@ -64,8 +73,18 @@ module.exports = {
     {
       name: 'react-import-allowed-layers-only',
       severity: 'error',
+      comment:
+        'react/ also reaches zustand directly for `StoreApi` and `useStore` — createStoreContext ' +
+        "is the standard zustand context pattern, and that pattern is defined in terms of zustand's " +
+        'own types and hook, not anything middleware/ re-exports.',
       from: { path: '^src/react/' },
-      to: { pathNot: '^(src/(core|middleware|react)/|node_modules/react)' },
+      to: {
+        pathNot: [
+          '^src/(core|middleware|react)/',
+          ...nodeModule('react'),
+          ...nodeModule('zustand'),
+        ],
+      },
     },
     {
       name: 'no-runtime-dependencies',
@@ -97,7 +116,7 @@ module.exports = {
   options: {
     // Tests sit next to their source and import vitest,
     // fast-check and the shared helpers in test/. None of it ships, so none of it is layered.
-    exclude: { path: '\\.test\\.ts$' },
+    exclude: { path: '\\.test\\.tsx?$' },
     doNotFollow: { path: 'node_modules' },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.json' },
