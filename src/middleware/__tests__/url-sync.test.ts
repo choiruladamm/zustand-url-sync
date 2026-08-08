@@ -280,6 +280,24 @@ describe('hydration', () => {
 
     expect(store.getState().q).toBe('edited')
   })
+
+  it('does not leak a set on a declared key to the URL before hydrate() runs', async () => {
+    const { adapter, store } = setup('/products?q=hello', { skipHydration: true })
+
+    store.getState().setQ('typed-before-hydrate')
+    await store.urlSync.flush()
+
+    // The set is still local state...
+    expect(store.getState().q).toBe('typed-before-hydrate')
+    // ...but must not have reached the URL, which hydrate() is about to read from.
+    expect(adapter.writes).toHaveLength(0)
+    expect(adapter.url()).toBe('/products?q=hello')
+
+    store.urlSync.hydrate()
+
+    // hydrate() reads the real URL, undisturbed by the interim set.
+    expect(store.getState().q).toBe('hello')
+  })
 })
 
 describe('route change', () => {

@@ -42,8 +42,14 @@ describe('getDefaultAdapter', () => {
     expect(getDefaultAdapter()).toBeUndefined()
   })
 
-  it('is what a store without an adapter or initialUrl complains about', () => {
+  it('is what a store without an adapter or initialUrl warns about, then degrades to an empty URL', () => {
     vi.stubGlobal('window', undefined)
-    expect(() => createFiltersStore()).toThrow(/no URL adapter/)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const store = createFiltersStore()
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no URL adapter'))
+    expect(store.getState().q).toBe('')
+    warn.mockRestore()
   })
 })

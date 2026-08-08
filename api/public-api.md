@@ -7,142 +7,15 @@
 
 ```ts
 import { a as Limiter, c as ParamSpec, d as Source, f as UrlAdapter, i as Invalid, l as RawValue, n as Codec, o as MultiCodec, r as INVALID, s as OnInvalid, t as AdapterWriteOptions, u as RouteChangePolicy } from "./types-BYiAnE3d.js";
-import { _ as ArrayOptions, a as StandardSchemaV1, c as NumberRange, d as ParamBuilder, f as ParamStart, g as ArrayMode, h as toSpec, i as InferOutput, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as BuiltParam } from "./c-i9KHse_z.js";
-import { StateCreator, StoreMutatorIdentifier } from "zustand/vanilla";
-//#region src/core/engine.d.ts
-type CommitOptions = Partial<AdapterWriteOptions> & {
-  limit?: 'immediate';
-};
-//#endregion
+import { a as StandardSchemaV1, c as NumberRange, d as ArrayOptions, i as InferOutput, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ArrayMode } from "./c-CWjSWFzJ.js";
+import { c as toSpec, i as ParamStart, n as ParamBuilder, r as ParamDecl, t as BuiltParam } from "./builder-BlyMcGYP.js";
+import { a as SyncOnly, c as UrlSyncOptions, i as StorageOption, l as StateStorage, n as ParamsDecl, o as UrlSync, r as PersistOptions, s as UrlSyncApi, t as ParamKey, u as CommitOptions } from "./types-CD1PGnpB.js";
 //#region src/middleware/default-adapter.d.ts
 /**
  * The SPA shortcut: one adapter for every store in the app. Throws off-browser, where the
  * per-request alternatives are `initialUrl`, an explicit `adapter`, or a provider.
  */
 declare function setDefaultAdapter(adapter: UrlAdapter): void;
-//#endregion
-//#region src/storage/guarded.d.ts
-/**
- * The three methods a storage backend has to provide, matching the shape Zustand's own `persist`
- * uses so an existing custom storage drops in unchanged.
- *
- * Synchronous by design: precedence resolves during store creation, and a value that arrives after
- * that would land on top of the URL — the exact failure this tier exists to avoid. An async
- * backend belongs behind the official `persist` middleware instead.
- */
-type StateStorage = {
-  getItem(name: string): string | null;
-  setItem(name: string, value: string): void;
-  removeItem(name: string): void;
-};
-//#endregion
-//#region src/middleware/types.d.ts
-/** An optional state key still carries its own type; only the absence is stripped. */
-type Value<T, K extends keyof T> = Exclude<T[K], undefined>;
-/**
- * The keys a param may be declared on: everything that is not an action. A function has no
- * serialized form, so declaring one is a typo, and this is what turns it into a compile error.
- */
-type ParamKey<T> = { [K in keyof T]-?: Value<T, K> extends ((...args: never[]) => unknown) ? never : K; }[keyof T];
-/** Either the result of a `c.*` chain or a hand-written spec. */
-type ParamDecl<T> = BuiltParam<T> | ParamSpec<T>;
-/**
- * Every declared key must exist on the state and must match its type. Nothing syncs without a
- * declaration — there is no `partialize` and no "sync everything".
- */
-type ParamsDecl<T> = { [K in ParamKey<T>]?: ParamDecl<Value<T, K>>; };
-/** Where the tier stores. `false` turns it off; a `StateStorage` supplies a backend of your own. */
-type StorageOption = 'local' | 'session' | StateStorage | false;
-/**
- * The storage tier. It never outranks the URL: a shared link renders what the sender saw, and the
- * stored value is what fills in the keys that link left out.
- *
- * `P` is the declared `params` object, which is what makes `keys` a closed set — naming a key that
- * has no codec is a compile error, not a silent no-op.
- */
-type PersistOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
-  /** Default `'local'`. */
-  storage?: StorageOption;
-  /** Which declared params also persist. Everything else stays URL-only. */
-  keys?: readonly Extract<keyof P, ParamKey<T>>[];
-  /**
-   * Storage-only keys, each with its own codec, so a persisted value round-trips as its declared
-   * type instead of `JSON.parse`-of-anything. A key already in `params` is rejected — it would be
-   * two declarations of one slot.
-   */
-  extra?: { [K in Exclude<ParamKey<T>, keyof P>]?: ParamDecl<Value<T, K>>; };
-  /** Bump to invalidate what is already stored. Default `0`. */
-  version?: number;
-  /** Upgrades an older entry. Values are the serialized strings, exactly as the URL carries them. */
-  migrate?: (persisted: Record<string, unknown>, from: number) => Record<string, unknown>;
-};
-type UrlSyncOptions<T, P extends ParamsDecl<T> = ParamsDecl<T>> = {
-  /** Namespaces the storage tier, and supplies the param prefix when `prefix: true`. */
-  name: string;
-  params: P;
-  /** `'tbl_'` prefixes every param; `true` uses `name` (`filters` → `filters_q`). */
-  prefix?: string | true;
-  adapter?: UrlAdapter;
-  /** Read params from this URL instead of a live one — a server render, or a store built before the router exists. */
-  initialUrl?: string;
-  /** The storage tier, off unless declared. `false` is the same as leaving it out. */
-  persist?: PersistOptions<T, P> | false;
-  maxUrlLength?: number;
-  onRouteChange?: RouteChangePolicy;
-  onInvalid?: OnInvalid;
-  /** Defer the first URL → store pass until `urlSync.hydrate()` runs. */
-  skipHydration?: boolean;
-};
-/**
- * `commit`'s override applies to the writes made during the *synchronous* execution of `fn`.
- * Carrying it across an `await` would need `AsyncLocalStorage` or a zone library; both are out, so
- * the trap is closed here instead of in a docs footnote.
- *
- * The brand is an intersection rather than a constraint on `R` because `R extends SyncOnly<R>` is
- * a circular constraint. Here `R` is still inferred from the function half, and a thenable one
- * then has to satisfy a property no function has.
- *
- * `Extract` rather than a bare conditional: a bare one distributes, and `never` distributes to
- * `never` — which would reject the perfectly good `fn` that only ever throws.
- */
-type SyncOnly<R> = (() => R) & ([Extract<R, PromiseLike<unknown>>] extends [never] ? unknown : {
-  __commitIsSynchronous_doNotPassAnAsyncFunction: never;
-});
-type UrlSyncApi = {
-  /** Runs `fn` with URL-write options overridden for exactly the writes it produces. */
-  commit<R>(fn: SyncOnly<R>, o?: CommitOptions): Promise<URLSearchParams>;
-  /** Forces the pending write out now and resolves with what landed. */
-  flush(): Promise<URLSearchParams>;
-  /** Builds the URL this state would produce, without navigating. For `<Link>`. */
-  toSearchParams(): URLSearchParams;
-  /**
-   * Parses a URL string and patches the store from its query params.
-   * URL bar is not touched — use the adapter or raw `set` for that.
-   * A string with no `?` carries no params.
-   */
-  patchFromUrl(url: string): void;
-  pause(): void;
-  resume(): void;
-  /** All declared keys back to their defaults, cleared from the URL. */
-  reset(): void;
-  /** Runs the deferred first URL → store pass. A no-op once hydrated. */
-  hydrate(): void;
-  hasHydrated(): boolean;
-  /** Fires immediately if hydration already happened. Returns an unsubscribe. */
-  onHydrated(cb: () => void): () => void;
-  /** Releases the adapter subscription and this store's claim on its param keys. */
-  dispose(): void;
-};
-type Cast<T, U> = T extends U ? T : U;
-type Write<T, U> = Omit<T, keyof U> & U;
-type UrlSync = <T, Mps extends [StoreMutatorIdentifier, unknown][] = [], Mcs extends [StoreMutatorIdentifier, unknown][] = [], P extends ParamsDecl<T> = ParamsDecl<T>>(initializer: StateCreator<T, [...Mps, ['url-sync', unknown]], Mcs>, options: UrlSyncOptions<T, P>) => StateCreator<T, Mps, [['url-sync', unknown], ...Mcs]>;
-declare module 'zustand/vanilla' {
-  interface StoreMutators<S, A> {
-    'url-sync': Write<Cast<S, object>, {
-      urlSync: UrlSyncApi;
-    }>;
-  }
-}
 //#endregion
 //#region src/middleware/url-sync.d.ts
 /**
@@ -298,7 +171,8 @@ export { TanStackRouter, tanstackRouterAdapter };
 
 ```ts
 import { n as Codec } from "../types-BYiAnE3d.js";
-import { _ as ArrayOptions, a as StandardSchemaV1, c as NumberRange, d as ParamBuilder, f as ParamStart, g as ArrayMode, h as toSpec, i as InferOutput, l as numberRangeCodec, m as start, n as SchemaStart, o as StandardSchemaV1Props, p as createBuilder, r as c, s as StandardSchemaV1Result, t as CodecLike, v as arrayCodec } from "../c-i9KHse_z.js";
+import { a as StandardSchemaV1, c as NumberRange, d as ArrayOptions, f as arrayCodec, i as InferOutput, l as numberRangeCodec, n as SchemaStart, o as StandardSchemaV1Props, r as c, s as StandardSchemaV1Result, t as CodecLike, u as ArrayMode } from "../c-CWjSWFzJ.js";
+import { c as toSpec, i as ParamStart, n as ParamBuilder, o as createBuilder, s as start } from "../builder-BlyMcGYP.js";
 //#region src/codecs/boolean.d.ts
 /** `true` / `false` only. Accepting `1` and `0` on the way in would invite emitting them later. */
 declare function booleanCodec(): Codec<boolean>;
@@ -346,11 +220,102 @@ export { type ArrayMode, type ArrayOptions, type CodecLike, type InferOutput, ty
 ## `zustand-url-sync/react`
 
 ```ts
-export {}
+import { f as UrlAdapter, t as AdapterWriteOptions } from "../types-BYiAnE3d.js";
+import { s as UrlSyncApi } from "../types-CD1PGnpB.js";
+import { ReactElement, ReactNode } from "react";
+import { StoreApi } from "zustand/vanilla";
+//#region src/react/index.d.ts
+/**
+ * Provides an adapter and default write options to all `urlSync` stores in the subtree.
+ *
+ * In an SSR app, wrap your app (or a layout) in this provider and pass the router adapter.
+ * `createStoreContext` reads the adapter automatically.
+ */
+declare function UrlSyncProvider({ adapter, defaultOptions, children }: {
+  adapter: UrlAdapter;
+  children: ReactNode;
+  defaultOptions?: Partial<AdapterWriteOptions> | undefined;
+}): ReactElement;
+/** Read the adapter from the nearest `UrlSyncProvider`, if any. */
+declare function useUrlSyncAdapter(): UrlAdapter | undefined;
+/** Read the default write options from the nearest `UrlSyncProvider`, if any. */
+declare function useUrlSyncDefaultOptions(): Partial<AdapterWriteOptions> | undefined;
+/**
+ * The standard Zustand SSR pattern, packaged: a ref-held store created once per mount,
+ * a context, and a `useStore(selector)` using Zustand's own hook so selectors and
+ * equality work as users expect.
+ *
+ * The `Provider` takes `initialUrl` and passes it to the factory. If the subtree is
+ * wrapped in `UrlSyncProvider`, the adapter is passed as a second argument.
+ *
+ * ```tsx
+ * export const createFiltersStore = (initialUrl?: string, adapter?: UrlAdapter) =>
+ *   createStore<FiltersState>()(
+ *     urlSync((set) => ({ ... }), { ...filtersConfig, initialUrl, adapter }),
+ *   )
+ *
+ * export const { Provider: FiltersProvider, useStore: useFilters } =
+ *   createStoreContext(createFiltersStore)
+ * ```
+ *
+ * The `Provider` never calls `urlSync.dispose()` on unmount — matching every other
+ * ref-held-store-in-render example, since disposing in a `useEffect` cleanup would leave a
+ * dead store with no way to recreate it across React 18 Strict Mode's dev-only
+ * mount → cleanup → remount cycle (the store is built in the render body, not the effect).
+ * Fine for the SSR case this is meant for: one `Provider` mount per request, thrown away with
+ * the request. If you mount and unmount the *same* `Provider` repeatedly on the client instead
+ * (a modal, an accordion row), each cycle leaks that store's adapter subscription — call
+ * `useStoreApi().urlSync.dispose()` yourself from your own unmount effect in that case, or keep
+ * the `Provider` mounted for the life of the app.
+ */
+declare function createStoreContext<S, A>(factory: (initialUrl?: string, adapter?: UrlAdapter) => StoreApi<S> & A): {
+  Provider: (p: {
+    initialUrl?: string;
+    children: ReactNode;
+  }) => ReactElement;
+  useStore: <U>(selector: (s: S) => U) => U;
+  useStoreApi: () => StoreApi<S> & A;
+};
+/**
+ * Returns `true` once the store has hydrated from the URL (or `initialUrl`).
+ * Useful with `skipHydration` for "render nothing until ready".
+ */
+declare function useUrlSyncHydrated(store: {
+  urlSync: UrlSyncApi;
+}): boolean;
+//#endregion
+export { UrlSyncProvider, createStoreContext, useUrlSyncAdapter, useUrlSyncDefaultOptions, useUrlSyncHydrated };
 ```
 
 ## `zustand-url-sync/server`
 
 ```ts
-export {}
+import { s as OnInvalid } from "../types-BYiAnE3d.js";
+import { a as ParamValue, r as ParamDecl } from "../builder-BlyMcGYP.js";
+//#region src/server/index.d.ts
+type ServerParams = Record<string, ParamDecl<unknown>>;
+/** The state shape a `params` record resolves to, key by key. */
+type InferState<P extends ServerParams> = { [K in keyof P]: ParamValue<P[K]>; };
+type ServerConfig<P extends ServerParams> = {
+  name: string;
+  params: P;
+  prefix?: string | true;
+  onInvalid?: OnInvalid;
+};
+/**
+ * Parse query params into typed state values — DOM-free, no React, no Zustand.
+ * Accepts Next.js `searchParams` shape (`Record<string, string | string[] | undefined>`) directly.
+ *
+ * URL > default. Invalid params fall back to the declared default.
+ */
+declare function parseSearchParams<P extends ServerParams>(search: string | URLSearchParams | Record<string, string | string[] | undefined>, config: ServerConfig<P>): Partial<InferState<P>>;
+/**
+ * Build a `URLSearchParams` from state values, using the same serialization the client uses.
+ * Useful for server-rendered `<Link href>` without instantiating a store.
+ *
+ * Defaults are omitted. `omitWhen` predicates are honoured.
+ */
+declare function buildSearchParams<P extends ServerParams>(values: Partial<InferState<P>>, config: ServerConfig<P>): URLSearchParams;
+//#endregion
+export { buildSearchParams, parseSearchParams };
 ```

@@ -9,6 +9,13 @@ const SPEC = '~spec'
 /** Anything the builder chain has produced, whatever modifiers it has closed off. */
 export type BuiltParam<T> = { readonly '~spec': ParamSpec<T> }
 
+/** Either the result of a `c.*` chain or a hand-written spec. */
+export type ParamDecl<T> = BuiltParam<T> | ParamSpec<T>
+
+/** The value type a declaration resolves to, whichever form it takes. */
+export type ParamValue<D> =
+  D extends BuiltParam<infer V> ? V : D extends ParamSpec<infer V> ? V : never
+
 /**
  * `.default()` comes first and is the only way to reach the rest of the chain, so a param with no
  * default cannot be written at all — precedence has nothing to fall back to without one.
